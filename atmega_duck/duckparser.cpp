@@ -10,6 +10,7 @@
 // #include "debug.h"
 #include "keyboard.h"
 #include "led.h"
+#include <Mouse.h>
 
 extern "C" {
  #include "parser.h" // parse_lines
@@ -40,20 +41,20 @@ namespace duckparser {
 
         // Keys
         else if (compare(str, len, "ENTER", CASE_SENSETIVE)) keyboard::pressKey(KEY_ENTER);
-        else if (compare(str, len, "MENU", CASE_SENSETIVE) || compare(str, len, "APP", CASE_SENSETIVE)) keyboard::pressKey(KEY_PROPS);
+        else if (compare(str, len, "MENU", CASE_SENSETIVE)) keyboard::pressKey(KEY_PROPS);
         else if (compare(str, len, "DELETE", CASE_SENSETIVE)) keyboard::pressKey(KEY_DELETE);
         else if (compare(str, len, "BACKSPACE", CASE_SENSETIVE)) keyboard::pressKey(KEY_BACKSPACE);
         else if (compare(str, len, "HOME", CASE_SENSETIVE)) keyboard::pressKey(KEY_HOME);
         else if (compare(str, len, "INSERT", CASE_SENSETIVE)) keyboard::pressKey(KEY_INSERT);
         else if (compare(str, len, "PAGEUP", CASE_SENSETIVE)) keyboard::pressKey(KEY_PAGEUP);
         else if (compare(str, len, "PAGEDOWN", CASE_SENSETIVE)) keyboard::pressKey(KEY_PAGEDOWN);
-        else if (compare(str, len, "UPARROW", CASE_SENSETIVE) || compare(str, len, "UP", CASE_SENSETIVE)) keyboard::pressKey(KEY_UP);
-        else if (compare(str, len, "DOWNARROW", CASE_SENSETIVE) || compare(str, len, "DOWN", CASE_SENSETIVE)) keyboard::pressKey(KEY_DOWN);
-        else if (compare(str, len, "LEFTARROW", CASE_SENSETIVE) || compare(str, len, "LEFT", CASE_SENSETIVE)) keyboard::pressKey(KEY_LEFT);
-        else if (compare(str, len, "RIGHTARROW", CASE_SENSETIVE) || compare(str, len, "RIGHT", CASE_SENSETIVE)) keyboard::pressKey(KEY_RIGHT);
+        else if (compare(str, len, "UP", CASE_SENSETIVE)) keyboard::pressKey(KEY_UP);
+        else if (compare(str, len, "DOWN", CASE_SENSETIVE)) keyboard::pressKey(KEY_DOWN);
+        else if (compare(str, len, "LEFT", CASE_SENSETIVE)) keyboard::pressKey(KEY_LEFT);
+        else if (compare(str, len, "RIGHT", CASE_SENSETIVE)) keyboard::pressKey(KEY_RIGHT);
         else if (compare(str, len, "TAB", CASE_SENSETIVE)) keyboard::pressKey(KEY_TAB);
         else if (compare(str, len, "END", CASE_SENSETIVE)) keyboard::pressKey(KEY_END);
-        else if (compare(str, len, "ESC", CASE_SENSETIVE) || compare(str, len, "ESCAPE", CASE_SENSETIVE)) keyboard::pressKey(KEY_ESC);
+        else if (compare(str, len, "ESC", CASE_SENSETIVE)) keyboard::pressKey(KEY_ESC);
         else if (compare(str, len, "F1", CASE_SENSETIVE)) keyboard::pressKey(KEY_F1);
         else if (compare(str, len, "F2", CASE_SENSETIVE)) keyboard::pressKey(KEY_F2);
         else if (compare(str, len, "F3", CASE_SENSETIVE)) keyboard::pressKey(KEY_F3);
@@ -133,6 +134,14 @@ namespace duckparser {
         return val;
     }
 
+    int toSignedInt(const char* str, size_t len) {
+        if (!str || len == 0) return 0;
+
+        if (str[0] == '-' && len > 1) return toInt(str + 1, len - 1) * -1;
+    
+        return toInt(str, len);
+    }
+
     void sleep(unsigned long time) {
         unsigned long offset = millis() - interpretTime;
 
@@ -179,6 +188,11 @@ namespace duckparser {
             // LOCALE (-> change keyboard layout)
             else if (compare(cmd->str, cmd->len, "LOCALE", CASE_SENSETIVE)) {
                 word_node* w = cmd->next;
+                
+                /*
+                    These are commented out here to avoid excessive flash usage; 
+                    if you wish to include one, you can uncomment it and comment on another that you don't use much.
+                */
 
                 if (compare(w->str, w->len, "US", CASE_INSENSETIVE)) {
                     keyboard::setLocale(&locale_us);
@@ -199,23 +213,23 @@ namespace duckparser {
                 } else if (compare(w->str, w->len, "PT", CASE_INSENSETIVE)) {
                     keyboard::setLocale(&locale_pt);
                 } else if (compare(w->str, w->len, "IT", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_it);
+                    //keyboard::setLocale(&locale_it);
                 } else if (compare(w->str, w->len, "SK", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_sk);
+                    //keyboard::setLocale(&locale_sk);
                 } else if (compare(w->str, w->len, "CZ", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_cz);
+                    //keyboard::setLocale(&locale_cz);
                 } else if (compare(w->str, w->len, "SI", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_si);
+                    //keyboard::setLocale(&locale_si);
                 } else if (compare(w->str, w->len, "BG", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_bg);
+                    //keyboard::setLocale(&locale_bg);
                 } else if (compare(w->str, w->len, "CA-FR", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_cafr);
+                    //keyboard::setLocale(&locale_cafr);
                 } else if (compare(w->str, w->len, "CH-DE", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_chde);
+                    //keyboard::setLocale(&locale_chde);
                 } else if (compare(w->str, w->len, "CH-FR", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_chfr);
+                    //keyboard::setLocale(&locale_chfr);
                 } else if (compare(w->str, w->len, "HU", CASE_INSENSETIVE)) {
-                    keyboard::setLocale(&locale_hu);
+                    //keyboard::setLocale(&locale_hu);
                 }
                 
                 ignore_delay = true;
@@ -228,7 +242,7 @@ namespace duckparser {
             }
 
             // DEFAULTDELAY/DEFAULT_DELAY (set default delay per command)
-            else if (compare(cmd->str, cmd->len, "DEFAULTDELAY", CASE_SENSETIVE) || compare(cmd->str, cmd->len, "DEFAULT_DELAY", CASE_SENSETIVE)) {
+            else if (compare(cmd->str, cmd->len, "DEFAULT_DELAY", CASE_SENSETIVE)) {
                 defaultDelay = toInt(line_str, line_str_len);
                 ignore_delay = true;
             }
@@ -254,18 +268,78 @@ namespace duckparser {
             else if (compare(cmd->str, cmd->len, "LED", CASE_SENSETIVE)) {
                 word_node* w = cmd->next;
 
-                int c[3];
-
-                for (uint8_t i = 0; i<3; ++i) {
-                    if (w) {
-                        c[i] = toInt(w->str, w->len);
-                        w    = w->next;
-                    } else {
-                        c[i] = 0;
+                #if defined(LED_CJMCU3212)
+                    if (compare(w->str, w->len, "RIGHT", CASE_INSENSETIVE)) {
+                        w = w->next;
+                        led::right(toInt(w->str, w->len) == 0 ? false : true);
                     }
-                }
+                    else if (compare(w->str, w->len, "LEFT", CASE_INSENSETIVE)) {
+                        w = w->next;
+                        led::left(toInt(w->str, w->len) == 0 ? false : true);
+                    }
+                #else
+                    int c[3];
 
-                led::setColor(c[0], c[1], c[2]);
+                    for (uint8_t i = 0; i<3; ++i) {
+                        if (w) {
+                            c[i] = toInt(w->str, w->len);
+                            w    = w->next;
+                        } else {
+                            c[i] = 0;
+                        }
+                    }
+
+                    led::setColor(c[0], c[1], c[2]);
+                #endif
+            }
+
+            // MOUSE MOVE
+            else if (compare(cmd->str, cmd->len, "M_MOVE", CASE_SENSETIVE)) {
+                word_node *w = cmd->next;
+
+                int x, y;
+
+                x = toSignedInt(w->str, w->len);
+                w = w->next;
+                y = toSignedInt(w->str, w->len);
+
+                Mouse.move(x, y);
+            }
+
+            // MOUSE CLICK
+            else if (compare(cmd->str, cmd->len, "M_CLICK", CASE_SENSETIVE)) {
+                word_node *w = cmd->next;
+
+                int b = toInt(w->str, w->len);
+
+                Mouse.click(b);
+            }
+
+            // MOUSE PRESS
+            else if (compare(cmd->str, cmd->len, "M_PRESS", CASE_SENSETIVE)) {
+                word_node *w = cmd->next;
+
+                int b = toInt(w->str, w->len);
+
+                Mouse.press(b);
+            }
+
+            // MOUSE RELEASE
+            else if (compare(cmd->str, cmd->len, "M_RELEASE", CASE_SENSETIVE)) {
+                word_node *w = cmd->next;
+
+                int b = toInt(w->str, w->len);
+
+                Mouse.release(b);
+            }
+
+            // MOUSE SCROLL
+            else if (compare(cmd->str, cmd->len, "M_SCROLL", CASE_SENSETIVE)) {
+                word_node *w = cmd->next;
+
+                int y = toSignedInt(w->str, w->len);
+
+                Mouse.move(0, 0, y);
             }
 
             // KEYCODE
@@ -321,14 +395,15 @@ namespace duckparser {
     }
 
     unsigned int getDelayTime() {
-        unsigned long finishTime  = sleepStartTime + sleepTime;
-        unsigned long currentTime = millis();
+        return 0;
+        //unsigned long finishTime  = sleepStartTime + sleepTime;
+        //unsigned long currentTime = millis();
 
-        if (currentTime > finishTime) {
-            return 0;
-        } else {
-            unsigned long remainingTime = finishTime - currentTime;
-            return (unsigned int)remainingTime;
-        }
+        //if (currentTime > finishTime) {
+        //    return 0;
+        //} else {
+        //    unsigned long remainingTime = finishTime - currentTime;
+        //    return (unsigned int)remainingTime;
+        //}
     }
 }

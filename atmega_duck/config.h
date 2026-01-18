@@ -22,17 +22,31 @@
 // #define DEBUG_BAUD 115200
 
 /*! ===== Communication Settings ===== */
-// #define ENABLE_SERIAL
+#define ENABLE_SERIAL
 #define SERIAL_COM Serial1
 #define SERIAL_BAUD 9600
 
 // #define ENABLE_I2C
-#define I2C_ADDR 0x31
+// #define I2C_ADDR 0x31
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 128
 #define PACKET_SIZE 32
 
+/*! ===== SDCARD Settings ===== */
+#define USE_SD_CARD
+#ifdef USE_SD_CARD
+#define SD_CS_PIN 4
+#define SD_SPEED SD_SCK_MHZ(8)
+#define AUTORUN_SCRIPT "AUTORUN.DS"
+#endif
+
 /*! ===== LED Settings ===== */
+#define LED_CJMCU3212
+#ifdef LED_CJMCU3212
+#define LED_RIGHT 8
+#define LED_LEFT 13
+#endif
+
 // #define NEOPIXEL
 // #define NEOPIXEL_NUM 1
 // #define LED_PIN 7

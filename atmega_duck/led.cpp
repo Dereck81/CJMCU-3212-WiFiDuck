@@ -73,6 +73,28 @@ namespace led {
     }
 }
 
+#elif defined(LED_CJMCU3212)
+
+namespace led {
+    #include <Arduino.h>
+
+    static inline void write(uint8_t pin, bool active) {
+        digitalWrite(pin, active ? HIGH : LOW);
+    }
+
+    void begin() {
+        pinMode(LED_LEFT, OUTPUT);
+        pinMode(LED_RIGHT, OUTPUT);
+    }
+
+    void left(bool active) {
+        write(LED_LEFT, active);
+    }
+    void right(bool active) {
+        write(LED_RIGHT, active);
+    }
+}
+
 #else // if defined(NEOPIXEL)
 
 namespace led {

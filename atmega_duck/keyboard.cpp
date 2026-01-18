@@ -85,6 +85,7 @@ namespace keyboard {
         debugln("]");
 #endif // ENABLE_DEBUG
         HID().SendReport(2, (uint8_t*)k, sizeof(report));
+        delayMicroseconds(2700); // Delay
     }
 
     void release() {

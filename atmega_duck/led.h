@@ -5,7 +5,16 @@
 
 #pragma once
 
+#include "config.h"
+
 namespace led {
+
     void begin();
+    
+    #if defined(LED_CJMCU3212)
+    void left(bool active);
+    void right(bool active);
+    #else
     void setColor(int r, int g, int b);
+    #endif
 }

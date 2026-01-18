@@ -8,7 +8,7 @@
 // If you get an error here, you probably have selected the wrong board
 // under Tools > Board
 #include <HID.h>
-#include "locales.h"
+#include "locales/locales.h"
 
 namespace keyboard {
     typedef struct report {
