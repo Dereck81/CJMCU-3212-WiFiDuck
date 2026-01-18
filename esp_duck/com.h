@@ -6,7 +6,6 @@
  */
 
 #pragma once
-
 /*! \typedef com_callback
  *  \brief Callback function to react on different responses
  */
@@ -38,6 +37,8 @@ namespace com {
 
     /*! Returns state of connection */
     bool connected();
+
+    int getComVersion();
 
     int getVersion();
 }

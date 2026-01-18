@@ -13,21 +13,21 @@
 // #define DEBUG_BAUD 115200
 
 /*! ===== Communication Settings ===== */
-// #define ENABLE_SERIAL
+#define ENABLE_SERIAL
 #define SERIAL_PORT Serial
 #define SERIAL_BAUD 9600
 
 // #define ENABLE_I2C
-#define I2C_ADDR 0x31
+// #define I2C_ADDR 0x31
 // #define I2C_SDA 4
 // #define I2C_SCL 5
 #define I2C_CLOCK_SPEED 100000L
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 128
 #define PACKET_SIZE 32
 
-#define MSG_CONNECTED "LED 0 0 25\n"
-#define MSG_STARTED "LED 0 25 0\n"
+#define MSG_CONNECTED "LED LEFT 0\n"
+#define MSG_STARTED "LED LEFT 0\n"
 
 /*! ======EEPROM Settings ===== */
 #define EEPROM_SIZE       4095

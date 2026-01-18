@@ -83,7 +83,11 @@ namespace webserver {
         WiFi.hostname(HOSTNAME);
 
         // WiFi.mode(WIFI_AP_STA);
-        WiFi.softAP(settings::getSSID(), settings::getPassword(), settings::getChannelNum());
+        /* 
+            Access was blocked to more than two people, 
+            as it can cause some problems if more than one person runs scripts.
+        */
+        WiFi.softAP(settings::getSSID(), settings::getPassword(), settings::getChannelNum(), 0, 1);
         WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
         debugf("Started Access Point \"%s\":\"%s\"\n", settings::getSSID(), settings::getPassword());
 

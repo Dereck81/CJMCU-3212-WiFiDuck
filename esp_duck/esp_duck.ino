@@ -16,7 +16,9 @@
 void setup() {
     debug_init();
 
-    delay(200);
+    // In the event that the ESP resets due to low voltage, 
+    // prevent it from sending an incomprehensible code to the atmega.
+    delay(2500);
 
     com::begin();
 

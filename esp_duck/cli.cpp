@@ -22,6 +22,14 @@ extern "C" {
 #include "com.h"
 #include "config.h"
 
+const char* duckycommands_blacklist[] = {
+    "DELAY", 
+    "DEFAULT_DELAY", 
+    "REPEAT", 
+    "REPLAY",
+    "REM"
+};
+
 namespace cli {
     // ===== PRIVATE ===== //
     SimpleCLI cli;           // !< Instance of SimpleCLI library
@@ -39,6 +47,26 @@ namespace cli {
      */
     inline void print(const String& s) {
         if (printfunc) printfunc(s.c_str());
+    }
+
+    /**
+     * \brief Checks whether a key command is blacklisted.
+     *
+     * Compares the beginning of the given key string against a list of
+     * blacklisted Duckyscript commands in a case-insensitive way.
+     *
+     * \param key The command string to evaluate.
+     * \return true if the command is blacklisted, false otherwise.
+     */
+    bool isBlackListed(String key) {
+        const char* str = key.c_str();
+        for (const char* blocked : duckycommands_blacklist){
+            size_t len = strlen(blocked);
+            if (strncasecmp(str, blocked, len) == 0)
+                if (str[len] == ' ' || str[len] == '\n' || str[len] == '\r' || str[len] == '\0')
+                    return true;
+        }
+        return false;
     }
 
     // ===== PUBLIC ===== //
@@ -74,6 +102,69 @@ namespace cli {
         });
 
         /**
+         * \brief Prints flash memory size information.
+         *
+         * Displays both the real flash chip size detected at runtime
+         * and the flash size configured in the firmware.
+         *
+         * Output:
+         *  - FlashChipRealSize
+         *  - FlashChipSize
+         */
+        cli.addCommand("flash_size", [](cmd* c) {
+            print("FlashChipRealSize: " + String(ESP.getFlashChipRealSize()) + "\n" + "FlashChipSize: " + String(ESP.getFlashChipSize()));
+        });
+
+        /**
+         * \brief Sends a raw key command to the ATmega device.
+         *
+         * This command receives a single argument representing a key or
+         * Duckyscript instruction and forwards it directly to the ATmega
+         * over the communication interface.
+         *
+         * The command is then transmitted exactly as provided, without
+         * further parsing or interpretation.
+         *
+         * \note Blacklisted or unsupported commands will not be sent.
+         *
+         * Usage:
+         *   key <command>
+         */
+        cli.addSingleArgCmd("key", [](cmd* c) {
+            Command  cmd { c };
+            Argument arg { cmd.getArg(0) };
+
+            String keyStr = arg.getValue();
+
+            if (isBlackListed(keyStr)) {
+                print("> unsupported command");
+                return;
+            }
+            
+            // If empty, ignore
+            if (keyStr.length() == 0) {
+                print("> empty key command");
+                return;
+            }
+            
+            keyStr.trim();
+
+            // Add newline if not present
+            if (!keyStr.endsWith("\r\n")) {
+                if (keyStr.endsWith("\n") || keyStr.endsWith("\r")) {
+                    keyStr.remove(keyStr.length() - 1);
+                }
+                keyStr += "\r\n";
+            }
+            
+            // Send directly to ATmega via com
+            com::send(keyStr.c_str(), keyStr.length());
+            
+            String response = "> key: " + keyStr;
+            print(response);
+        });
+
+        /**
          * \brief Create ram command
          *
          * Prints number of free bytes in the RAM
@@ -90,7 +181,7 @@ namespace cli {
          * Prints the current version number
          */
         cli.addCommand("version", [](cmd* c) {
-            String res = "Version " + String(VERSION) + " (" + String(com::getVersion()) + ")";
+            String res = "Version " + String(VERSION) + " (ATmega: " + String(com::getVersion()) + ", ESP: " + String(com::getComVersion())+ ")";
             print(res);
         });
 
@@ -151,6 +242,10 @@ namespace cli {
          * i2c connection problem
          */
         cli.addCommand("status", [](cmd* c) {
+            String response = "pre-if version=" + String(com::getVersion()) + "\n";
+            if (com::getVersion() != com::getComVersion()) {
+                response += "ERROR, COM_VERSION=" + String(com::getComVersion());
+            }
             if (com::connected()) {
                 if (duckscript::isRunning()) {
                     String s = "running " + duckscript::currentScript();
@@ -159,7 +254,7 @@ namespace cli {
                     print("connected");
                 }
             } else {
-                print("Internal connection problem");
+                print("Internal connection problem\n" + response);
             }
         });
 

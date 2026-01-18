@@ -259,7 +259,7 @@ namespace com {
 
             debug("Com. status ");
 
-            if (status.version != COM_VERSION) {
+            if ((uint8_t)status.version != (uint8_t)COM_VERSION) {
                 debugf("ERROR %u\n", status.version);
                 connection = false;
                 if (callback_error) callback_error();
@@ -348,4 +348,9 @@ namespace com {
     int getVersion() {
         return status.version;
     }
+
+    int getComVersion() {
+        return COM_VERSION;
+    }
+
 }
