@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SdFat.h>
+#include <SdFat.h> //version: 2.3.0
 #include <Arduino.h>
 #include "config.h"
 

@@ -1,6 +1,6 @@
 #include "sdcard.h"
 #include "config.h"
-#include <SdFat.h>
+#include <SdFat.h> //version: 2.3.0
 
 #ifdef USE_SD_CARD
 

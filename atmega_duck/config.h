@@ -34,6 +34,7 @@
 
 /*! ===== SDCARD Settings ===== */
 #define USE_SD_CARD
+
 #ifdef USE_SD_CARD
 #define SD_CS_PIN 4
 #define SD_SPEED SD_SCK_MHZ(8)
@@ -42,6 +43,7 @@
 
 /*! ===== LED Settings ===== */
 #define LED_CJMCU3212
+
 #ifdef LED_CJMCU3212
 #define LED_RIGHT 8
 #define LED_LEFT 13

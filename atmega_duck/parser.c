@@ -5,10 +5,193 @@
  */
 
 #include "parser.h"
+#include "config.h"
 
 #include <stdlib.h>  // malloc
 #include <string.h>  // strlen
 #include <stdbool.h> // bool
+
+#ifdef USE_SD_CARD
+
+#include <stdint.h>
+
+// statics pools
+static line_node linePool[MAX_LINE_NODES];
+static word_node wordPool[MAX_WORD_NODES];
+static uint8_t nextLine = 0;
+
+void reset_pools() {
+    nextLine = 0;
+}
+
+char to_lower(char c) {
+    return (c >= 65 && c <= 90) ? c + 32 : c;
+}
+
+int compare(const char* user_str, size_t user_str_len, const char* templ_str, int case_sensetive) {
+    if (user_str == templ_str) return COMPARE_EQUAL;
+    if (!user_str || !templ_str) return COMPARE_UNEQUAL;
+    
+    size_t str_len = user_str_len;
+    size_t key_len = strlen(templ_str);
+    
+    if (str_len == key_len) {
+        for (size_t i = 0; i < key_len; i++) {
+            if (case_sensetive == COMPARE_CASE_SENSETIVE) {
+                if (user_str[i] != templ_str[i]) return COMPARE_UNEQUAL;
+            } else {
+                if (to_lower(user_str[i]) != to_lower(templ_str[i])) return COMPARE_UNEQUAL;
+            }
+        }
+        return COMPARE_EQUAL;
+    }
+    return COMPARE_UNEQUAL;
+}
+
+// create nodes from the pool
+word_node* word_node_create(const char* str, size_t len) {
+    // nextWord is handled locally in parse_words()
+    static uint8_t nextWord = 0;
+    
+    if (nextWord >= MAX_WORD_NODES) return NULL;
+    
+    word_node* n = &wordPool[nextWord++];
+    n->str = str;
+    n->len = len;
+    n->next = NULL;
+    return n;
+}
+
+line_node* line_node_create(const char* str, size_t len) {
+    if (nextLine >= MAX_LINE_NODES) return NULL;
+    
+    line_node* n = &linePool[nextLine++];
+    n->str = str;
+    n->len = len;
+    n->words.first = NULL;
+    n->words.last = NULL;
+    n->words.size = 0;
+    n->next = NULL;
+    return n;
+}
+
+// Lists
+word_list* word_list_create() {
+    static word_list wl;
+    wl.first = NULL;
+    wl.last = NULL;
+    wl.size = 0;
+    return &wl;
+}
+
+line_list* line_list_create() {
+    static line_list ll;
+    ll.first = NULL;
+    ll.last = NULL;
+    ll.size = 0;
+    return &ll;
+}
+
+void word_list_push(word_list* l, word_node* n) {
+    if (!l || !n) return;
+    if (l->last) l->last->next = n;
+    else l->first = n;
+    l->last = n;
+    l->size++;
+}
+
+void line_list_push(line_list* l, line_node* n) {
+    if (!l || !n) return;
+    if (l->last) l->last->next = n;
+    else l->first = n;
+    l->last = n;
+    l->size++;
+}
+
+word_node* word_list_get(word_list* l, size_t i) {
+    if (!l) return NULL;
+    word_node* h = l->first;
+    for (size_t j = 0; j < i && h; j++) h = h->next;
+    return h;
+}
+
+line_node* line_list_get(line_list* l, size_t i) {
+    if (!l) return NULL;
+    line_node* h = l->first;
+    for (size_t j = 0; j < i && h; j++) h = h->next;
+    return h;
+}
+
+// ===== PARSER WITH PER-LINE RESET =====
+word_list* parse_words(const char* str, size_t len) {
+    // Reset of the word pool PER LINE!!!
+    static uint8_t nextWord;
+    nextWord = 0;
+    
+    word_list* l = word_list_create();
+    if (len == 0) return l;
+
+    size_t j = 0;
+    bool first_word = true;
+    
+    for (size_t i = 0; i <= len; i++) {
+        if (i == len || str[i] == ' ') {
+            size_t k = i - j;
+            
+            if (k > 0) {
+                // Check for overflow
+                if (nextWord >= MAX_WORD_NODES) break;
+                
+                word_node* n = &wordPool[nextWord++];
+                n->str = &str[j];
+                n->len = k;
+                n->next = NULL;
+                
+                word_list_push(l, n);
+                
+                // BYPASS STRING
+                if (first_word && k == 6 && 
+                    str[j]=='S' && str[j+1]=='T' && str[j+2]=='R' && 
+                    str[j+3]=='I' && str[j+4]=='N' && str[j+5]=='G') {
+                    return l;
+                }
+                first_word = false;
+            }
+            j = i + 1;
+        }
+    }
+    
+    return l;
+}
+
+line_list* parse_lines(const char* str, size_t len) {
+    reset_pools();
+    
+    line_list* l = line_list_create();
+    if (len == 0) return l;
+
+    size_t ls = 0;
+    for (size_t stri = 0; stri <= len; stri++) {
+        bool linebreak = (str[stri] == '\r' || str[stri] == '\n');
+        bool endofbuf = (stri == len);
+
+        if (linebreak || endofbuf) {
+            size_t llen = stri - ls;
+            if (llen > 0) {
+                line_node* n = line_node_create(&str[ls], llen);
+                if (n) {
+                    word_list* words = parse_words(&str[ls], llen);
+                    n->words = *words;  // Copy structure
+                    line_list_push(l, n);
+                }
+            }
+            ls = stri + 1;
+        }
+    }
+    return l;
+}
+
+#else
 
 // My own implementation, because the default one in ctype.h make problems on older ESP8266 SDKs
 char to_lower(char c) {
@@ -320,3 +503,5 @@ line_list* parse_lines(const char* str, size_t len) {
 
     return l;
 }
+
+#endif

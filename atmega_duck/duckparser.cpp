@@ -170,7 +170,12 @@ namespace duckparser {
         while (n) {
             ignore_delay = false;
 
-            word_list* wl  = n->words;
+            #ifdef USE_SD_CARD
+                word_list* wl  = &n->words;
+            #else
+                word_list* wl  = n->words;
+            #endif
+
             word_node* cmd = wl->first;
 
             const char* line_str = cmd->str + cmd->len + 1;
@@ -258,7 +263,15 @@ namespace duckparser {
                 if (inString) {
                     type(n->str, n->len);
                 } else {
-                    type(line_str, line_str_len);
+
+                    #ifdef USE_SD_CARD
+                        const char* text_ptr = n->str + 7;
+                        int text_len = (int)n->len - 7;
+                        if (text_len > 0) type(text_ptr, text_len);
+                    #else
+                        type(line_str, line_str_len);
+                    #endif
+
                 }
 
                 inString = !line_end;
@@ -387,7 +400,9 @@ namespace duckparser {
             interpretTime = millis();
         }
 
-        line_list_destroy(l);
+        #if !defined(USE_SD_CARD)
+            line_list_destroy(l);
+        #endif
     }
 
     int getRepeats() {

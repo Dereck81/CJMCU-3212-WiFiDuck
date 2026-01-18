@@ -16,7 +16,7 @@
 #include <Mouse.h>
 
 #ifdef USE_SD_CARD
-    static uint8_t _gb[1];
+    static uint8_t _gb[BUFFER_SIZE];
     static bool runningSDcard = false;
 #endif
 
