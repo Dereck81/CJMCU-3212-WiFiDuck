@@ -22,6 +22,7 @@ extern "C" {
 namespace duckparser {
     // ====== PRIVATE ===== //
     bool inString  = false;
+    bool isStringln = false;
     bool inComment = false;
 
     int defaultDelay = 5;
@@ -259,29 +260,37 @@ namespace duckparser {
             }
 
             // STRING (-> type each character)
-            else if (inString || compare(cmd->str, cmd->len, "STRING", CASE_SENSETIVE)) {
+            else if (inString || compare(cmd->str, cmd->len, "STRING", CASE_SENSETIVE) || compare(cmd->str, cmd->len, "STRINGLN", CASE_SENSETIVE)) {
                 if (inString) {
                     type(n->str, n->len);
                 } else {
+                    isStringln = cmd->str[cmd->len-1] == 'N' && cmd->str[cmd->len-2] == 'L';
 
                     #ifdef USE_SD_CARD
-                        const char* text_ptr = n->str + 7;
-                        int text_len = (int)n->len - 7;
+                        const char* text_ptr = n->str + (isStringln ? 9 : 7);
+                        int text_len = (int)n->len - (isStringln ? 9 : 7);
                         if (text_len > 0) type(text_ptr, text_len);
                     #else
                         type(line_str, line_str_len);
-                    #endif
+                    #endif 
 
                 }
 
                 inString = !line_end;
+
+                if (line_end && isStringln) {
+                    isStringln = false;
+                    keyboard::pressKey(KEY_ENTER);
+                    release();
+                }
+                    
             }
 
             // LED
             else if (compare(cmd->str, cmd->len, "LED", CASE_SENSETIVE)) {
                 word_node* w = cmd->next;
 
-                #if defined(LED_CJMCU3212)
+                #ifdef LED_CJMCU3212
                     if (compare(w->str, w->len, "RIGHT", CASE_INSENSETIVE)) {
                         w = w->next;
                         led::right(toInt(w->str, w->len) == 0 ? false : true);

@@ -112,7 +112,8 @@ namespace cli {
          *  - FlashChipSize
          */
         cli.addCommand("flash_size", [](cmd* c) {
-            print("FlashChipRealSize: " + String(ESP.getFlashChipRealSize()) + "\n" + "FlashChipSize: " + String(ESP.getFlashChipSize()));
+            print("FlashChipRealSize: " + String(ESP.getFlashChipRealSize()) + "\n" + 
+            "FlashChipSize: " + String(ESP.getFlashChipSize()));
         });
 
         /**

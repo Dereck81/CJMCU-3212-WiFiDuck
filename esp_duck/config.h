@@ -18,7 +18,7 @@
 #define SERIAL_BAUD 9600
 
 // #define ENABLE_I2C
-// #define I2C_ADDR 0x31
+#define I2C_ADDR 0x31
 // #define I2C_SDA 4
 // #define I2C_SCL 5
 #define I2C_CLOCK_SPEED 100000L

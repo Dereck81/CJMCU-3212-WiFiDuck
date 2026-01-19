@@ -84,7 +84,7 @@ namespace webserver {
 
         // WiFi.mode(WIFI_AP_STA);
         /* 
-            Access was blocked to more than two people, 
+            Access was blocked to more than one people, 
             as it can cause some problems if more than one person runs scripts.
         */
         WiFi.softAP(settings::getSSID(), settings::getPassword(), settings::getChannelNum(), 0, 1);
