@@ -8,20 +8,40 @@ namespace sdcard {
     static SdFat SD;
     static SdFile f;
     static bool r;
+    static SDStatus currentStatus = SD_NOT_PRESENT;
 
     bool begin() {
-        return SD.begin(SD_CS_PIN, SD_SPEED);
+        if(SD.begin(SD_CS_PIN, SD_SPEED)) {
+            currentStatus = SD_IDLE;
+            return true;
+        }
+        return false;
     }
 
     bool available() {
-        return SD.card() && SD.vol();
+        if(SD.card() && SD.vol() && currentStatus != SD_NOT_PRESENT) 
+            return true;
+        currentStatus = SD_NOT_PRESENT;
+        return false;
+    }
+
+    void setStatus(SDStatus s) {
+        currentStatus = s;
+    }
+
+    SDStatus getStatus() {
+        return currentStatus;
     }
 
     bool beginFileRead(const char* n, uint32_t* s) {
         if (r || !available()) return false;
-        if (!f.open(n, O_RDONLY)) return false;
+        if (!f.open(n, O_RDONLY)) { 
+            currentStatus = SD_ERROR;
+            return false;
+        }
         *s = f.fileSize();
         r = true;
+        currentStatus = SD_READING;
         return true;
     }
 
@@ -33,6 +53,7 @@ namespace sdcard {
         if (r) {
             f.close();
             r = false;
+            currentStatus = SD_IDLE;
         }
     }
 

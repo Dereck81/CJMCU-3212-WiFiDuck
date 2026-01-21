@@ -11,6 +11,7 @@
 
 #include "debug.h"
 #include "duckparser.h"
+#include "sdcard.h"
 
 // ! Communication request codes
 #define REQ_SOT 0x01     // !< Start of transmission
@@ -19,11 +20,20 @@
 
 #define COM_VERSION 4
 
-typedef struct status_t {
-    unsigned int version : 8;
-    unsigned int wait    : 16;
-    unsigned int repeat  : 8;
-} status_t;
+#ifdef USE_SD_CARD
+    typedef struct status_t {
+        unsigned int version : 8;
+        unsigned int wait    : 16;
+        unsigned int repeat  : 8;
+        unsigned int sdcardStatus : 8;
+    } status_t;
+#else
+    typedef struct status_t {
+        unsigned int version : 8;
+        unsigned int wait    : 16;
+        unsigned int repeat  : 8;
+    } status_t;
+#endif
 
 namespace com {
     // =========== PRIVATE ========= //
@@ -40,6 +50,9 @@ namespace com {
                       + (uint16_t)data_buf.len
                       + (uint16_t)duckparser::getDelayTime();
         status.repeat = (uint8_t)(duckparser::getRepeats() > 255 ? 255 : duckparser::getRepeats());
+        #ifdef USE_SD_CARD
+        status.sdcardStatus = sdcard::getStatus();
+        #endif
     }
 
     // ========== PRIVATE I2C ========== //
@@ -85,6 +98,11 @@ namespace com {
         update_status();
 #ifdef ENABLE_DEBUG
         debugs("Replying with status {");
+        #ifdef USE_SD_CARD
+            debugs("sdcard: ");
+            debug(status.sdcardStatus);
+            debugs(" ,");
+        #endif
         debugs("wait: ");
         debug(status.wait);
         debugs(",repeat: ");

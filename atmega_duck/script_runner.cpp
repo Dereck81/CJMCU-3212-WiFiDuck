@@ -28,6 +28,7 @@ namespace script_runner {
         state.afterRepeat = 0;
         state.repeatCount = 0;
         state.flags = FLAG_RUNNING;
+        sdcard::setStatus(sdcard::SDStatus::SD_EXECUTING);
         
         return 1;
     }
@@ -37,6 +38,7 @@ namespace script_runner {
             sdcard::endFileRead();
             state.flags = 0;
         }
+        sdcard::setStatus(sdcard::SDStatus::SD_IDLE);
     }
 
     bool getLine(uint8_t* buffer, uint8_t* length) {
