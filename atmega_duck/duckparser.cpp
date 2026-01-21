@@ -419,15 +419,14 @@ namespace duckparser {
     }
 
     unsigned int getDelayTime() {
-        return 0;
-        //unsigned long finishTime  = sleepStartTime + sleepTime;
-        //unsigned long currentTime = millis();
-
-        //if (currentTime > finishTime) {
-        //    return 0;
-        //} else {
-        //    unsigned long remainingTime = finishTime - currentTime;
-        //    return (unsigned int)remainingTime;
-        //}
+        unsigned long finishTime  = sleepStartTime + sleepTime;
+        unsigned long currentTime = millis();
+        
+        if (currentTime > finishTime) {
+            return 0;
+        } else {
+            unsigned long remainingTime = finishTime - currentTime;
+            return (unsigned int)remainingTime;
+        }
     }
 }

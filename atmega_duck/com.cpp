@@ -186,6 +186,10 @@ namespace com {
 
             receive_buf.len = 0;
         }
+        
+        // This code solves the problem of the ESP stopping sending data when it receives wait: 1
+        if (!start_parser && data_buf.len == 0 && status.wait > 0)
+            if (duckparser::getDelayTime() == 0) sendDone(); 
     }
 
     bool hasData() {
