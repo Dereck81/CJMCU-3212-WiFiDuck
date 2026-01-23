@@ -1,6 +1,5 @@
 #pragma once
 
-#include <SdFat.h> //version: 2.3.0
 #include <Arduino.h>
 #include "config.h"
 
@@ -20,20 +19,6 @@ namespace sdcard {
 
         SD_READY       = 0xC0,
     };
-
-    bool begin();
-    bool available();
-
-    void setStatus(SDStatus s);
-    SDStatus getStatus();
-
-    // read files
-    bool beginFileRead(const char *filename, uint32_t *fileSize);
-    uint16_t readFileChunk(uint8_t *buffer, uint16_t maxSize);
-    void endFileRead();
-    
-    uint32_t tell();
-    bool seek(uint32_t pos);
 
 }
 

@@ -1,4 +1,4 @@
-/*
+D@/*
    This software is licensed under the MIT License. See the license file for details.
    Source: https://github.com/spacehuhntech/WiFiDuck
  */
@@ -26,8 +26,11 @@
 #define BUFFER_SIZE 128
 #define PACKET_SIZE 32
 
-#define MSG_CONNECTED "LED LEFT 0\n"
-#define MSG_STARTED "LED LEFT 0\n"
+#define MSG_CONNECTED "REM CONNECT ESP\n"
+#define MSG_STARTED "REM STARTED ESP\n"
+
+/*! ===== SDCARD Settings ===== */
+#define USE_SD_CARD
 
 /*! ======EEPROM Settings ===== */
 #define EEPROM_SIZE       4095

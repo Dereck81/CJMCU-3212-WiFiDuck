@@ -25,8 +25,8 @@
         unsigned int version : 8;
         unsigned int wait    : 16;
         unsigned int repeat  : 8;
-        unsigned int sdcardStatus : 8;
-    } status_t;
+        unsigned int sdcard_status : 8;
+    } __attribute__((packed)) status_t;
 #else
     typedef struct status_t {
         unsigned int version : 8;
@@ -51,7 +51,7 @@ namespace com {
                       + (uint16_t)duckparser::getDelayTime();
         status.repeat = (uint8_t)(duckparser::getRepeats() > 255 ? 255 : duckparser::getRepeats());
         #ifdef USE_SD_CARD
-        status.sdcardStatus = sdcard::getStatus();
+        status.sdcard_status = sdcard::getStatus();
         #endif
     }
 
@@ -98,15 +98,14 @@ namespace com {
         update_status();
 #ifdef ENABLE_DEBUG
         debugs("Replying with status {");
-        #ifdef USE_SD_CARD
-            debugs("sdcard: ");
-            debug(status.sdcardStatus);
-            debugs(" ,");
-        #endif
         debugs("wait: ");
         debug(status.wait);
         debugs(",repeat: ");
         debug(status.repeat);
+        #ifdef USE_SD_CARD
+            debugs(",sdcard: ");
+            debug(status.sdcard_status);
+        #endif
         debugs("} [");
 
         for (int i = 0; i<sizeof(status_t); ++i) {

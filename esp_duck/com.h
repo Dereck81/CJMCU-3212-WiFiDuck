@@ -11,6 +11,9 @@
  */
 typedef void (* com_callback)();
 
+#include "sdcard.h"
+#include "config.h"
+
 /*! \namespace com
  *  \brief Communication module
  */
@@ -37,6 +40,10 @@ namespace com {
 
     /*! Returns state of connection */
     bool connected();
+
+    #ifdef USE_SD_CARD
+    int getSdcardStatus();
+    #endif
 
     int getComVersion();
 

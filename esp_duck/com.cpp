@@ -11,6 +11,7 @@
 
 #include "config.h"
 #include "debug.h"
+#include "sdcard.h"
 
 // ! Communication request codes
 #define REQ_SOT 0x01     // !< Start of transmission
@@ -18,12 +19,20 @@
 #define REQ_VERSION 0x02 // !< Request current version
 
 #define COM_VERSION 4
-
-typedef struct status_t {
-    unsigned int version : 8;
-    unsigned int wait    : 16;
-    unsigned int repeat  : 8;
-} status_t;
+#ifdef USE_SD_CARD
+    typedef struct status_t {
+        unsigned int version : 8;
+        unsigned int wait    : 16;
+        unsigned int repeat  : 8;
+        unsigned int sdcard_status : 8; 
+    } __attribute__((packed)) status_t;
+#else
+    typedef struct status_t {
+        unsigned int version : 8;
+        unsigned int wait    : 16;
+        unsigned int repeat  : 8;
+    } status_t;
+#endif
 
 namespace com {
     // ========== PRIVATE ========== //
@@ -203,6 +212,10 @@ namespace com {
 
                 status.repeat = SERIAL_PORT.read();
 
+                #ifdef USE_SD_CARD
+                status.sdcard_status = SERIAL_PORT.read();
+                #endif
+
                 react_on_status = status.wait == 0 ||
                                   status.repeat > 0 ||
                                   ((prev_wait&1) ^ (status.wait&1));
@@ -245,6 +258,9 @@ namespace com {
         status.version = 0;
         status.wait    = 0;
         status.repeat  = 0;
+        #ifdef USE_SD_CARD
+        status.sdcard_status = sdcard::SD_NOT_PRESENT;
+        #endif
 
         i2c_begin();
         serial_begin();
@@ -344,6 +360,12 @@ namespace com {
     bool connected() {
         return connection;
     }
+
+    #ifdef USE_SD_CARD
+    int getSdcardStatus() {
+        return status.sdcard_status;
+    }
+    #endif
 
     int getVersion() {
         return status.version;

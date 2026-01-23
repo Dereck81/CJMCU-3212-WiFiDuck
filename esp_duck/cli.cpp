@@ -21,6 +21,7 @@ extern "C" {
 #include "settings.h"
 #include "com.h"
 #include "config.h"
+#include "sdcard.h"
 
 const char* duckycommands_blacklist[] = {
     "DELAY", 
@@ -248,6 +249,18 @@ namespace cli {
                 response += "ERROR, COM_VERSION=" + String(com::getComVersion());
             }
             if (com::connected()) {
+                #ifdef USE_SD_CARD
+                    uint8_t sdcard_status = com::getSdcardStatus();
+                    if (sdcard_status >= sdcard::SD_READING && sdcard_status <= sdcard::SD_LISTING) {
+                        String s = "[SDCARD!] ";
+                        if (sdcard_status == sdcard::SD_READING) s += "reading...";
+                        else if (sdcard_status == sdcard::SD_WRITING) s += "writting...";
+                        else if (sdcard_status == sdcard::SD_EXECUTING) s += "running...";
+                        else if (sdcard_status == sdcard::SD_LISTING) s += "enumerating...";
+                        print(s);
+                        return;
+                    }
+                #endif
                 if (duckscript::isRunning()) {
                     String s = "running " + duckscript::currentScript();
                     print(s);
