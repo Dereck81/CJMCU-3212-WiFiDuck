@@ -1,24 +1,24 @@
 /*
    This software is licensed under the MIT License. See the license file for details.
    Source: https://github.com/spacehuhntech/WiFiDuck
+   
+   Modified and adapted by:
+    - Dereck81
  */
 
-#include "config.h"
-#include "debug.h"
+#include "include/config.h"
+#include "include/debug.h"
 
-#include "keyboard.h"
-#include "led.h"
-#include "com.h"
-#include "duckparser.h"
-#include "serial_bridge.h"
-#include "sdcard.h"
-#include "script_runner.h"
+#include "src/hid/keyboard.h"
+#include "src/led/led.h"
+#include "src/com/com.h"
+#include "src/duckparser/duckparser.h"
+#include "src/serial_bridge/serial_bridge.h"
+#include "src/sdcard/sdcard.h"
+#include "src/sdcard/sd_handler.h"
+
 #include <Mouse.h>
 
-#ifdef USE_SD_CARD
-    static uint8_t _gb[BUFFER_SIZE];
-    static sdcard::SDStatus sdcard_status;
-#endif
 
 // ===== SETUP ====== //
 void setup() {
@@ -36,12 +36,7 @@ void setup() {
     debugln(VERSION);
     
     #ifdef USE_SD_CARD
-        if (sdcard::begin()) {
-            #ifdef AUTORUN_SCRIPT
-                if(script_runner::start(AUTORUN_SCRIPT)) 
-                    led::right(true);
-            #endif
-        }
+    if (sdcard::begin()) sd_handler::autorun();
     #endif
 
 }
@@ -50,35 +45,7 @@ void setup() {
 void loop() {
 
     #ifdef USE_SD_CARD
-        sdcard_status = sdcard::getStatus();
-
-        if (sdcard_status == sdcard::SD_EXECUTING) {
-            uint8_t l;
-            if (script_runner::getLine(_gb, &l)) {
-                //for(uint8_t i=0; i<l; i++) debug((char)_gb[i]);
-                duckparser::parse(_gb, l);
-            }else {
-                Mouse.release(MOUSE_LEFT);
-                Mouse.release(MOUSE_RIGHT);
-                Mouse.release(MOUSE_MIDDLE);
-                delay(10);
-                
-                Mouse.move(0, 0, 0);
-                delay(10);
-                
-                keyboard::release();
-                delay(10);
-
-                script_runner::stop();
-
-                led::right(false);
-
-                com::sendDone(); // Sends SD card completion status update
-                
-                return;
-            }
-
-        }
+    if (!sd_handler::run_script_step()) return;
     #endif
 
     com::update();
@@ -86,17 +53,53 @@ void loop() {
         const buffer_t& buffer = com::getBuffer();
 
         #ifdef USE_SD_CARD
-            if (sdcard_status >= sdcard::SD_READING && sdcard_status <= sdcard::SD_LISTING) {
+            if (com::isSdPacket()) {
+                debugs("SD CMD: ");
+
+                debugln(buffer.data[0], HEX);
+
+                sd_handler::process(buffer.data, buffer.len);
+
+            } 
+            
+            else if (sdcard::getStatus() >= sdcard::SD_READING) {
+                // This condition prevents the interpretation of any value 
+                // other than an SD_CMD_ sent from the ESP when the SDCARD is operational.
+                // Notify the status again with sendDone.
                 com::sendDone();
                 return;
+
+            } 
+            
+            else if(buffer.len == 1 && buffer.data[0] == CMD_PARSER_RESET) {
+                debugln("Duckparser reset");
+
+                duckparser::reset();      
             }
-        #endif 
+            
+            else {
+                debugs("Interpreting: ");
 
-        debugs("Interpreting: ");
+                for (size_t i = 0; i<buffer.len; i++) debug(buffer.data[i]);
 
-        for (size_t i = 0; i<buffer.len; i++) debug(buffer.data[i]);
+                duckparser::parse(buffer.data, buffer.len);
 
-        duckparser::parse(buffer.data, buffer.len);
+            }
+        #else 
+
+            if (buffer.len == 1 && buffer.data[0] == CMD_PARSER_RESET) {
+                debugln("Duckparser reset");
+                
+                duckparser::reset();
+            } else {
+                debugs("Interpreting: ");
+
+                for (size_t i = 0; i<buffer.len; i++) debug(buffer.data[i]);
+
+                duckparser::parse(buffer.data, buffer.len);
+            }
+            
+        #endif
 
         com::sendDone();
     }
