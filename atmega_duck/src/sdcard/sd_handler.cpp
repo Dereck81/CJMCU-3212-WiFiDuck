@@ -166,7 +166,7 @@ namespace sd_handler {
 
         // Send acknowledgment back so the receiving device knows we are ready
         // for the next chunk
-        com::sendSdData(sd_ack_val, 1);
+        com::sendSdData(&sd_ack_val, 1);
     }
 
      /**

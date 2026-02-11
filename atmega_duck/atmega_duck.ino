@@ -54,9 +54,9 @@ void loop() {
 
         #ifdef USE_SD_CARD
             if (com::isSdPacket()) {
-                debugs("SD CMD: ");
+                //debugs("SD CMD: ");
 
-                debugln(buffer.data[0], HEX);
+                //debugln(buffer.data[0], HEX);
 
                 sd_handler::process(buffer.data, buffer.len);
 
@@ -72,15 +72,15 @@ void loop() {
             } 
             
             else if(buffer.len == 1 && buffer.data[0] == CMD_PARSER_RESET) {
-                debugln("Duckparser reset");
+                //debugln("Duckparser reset");
 
                 duckparser::reset();      
             }
             
             else {
-                debugs("Interpreting: ");
+                //debugs("Interpreting: ");
 
-                for (size_t i = 0; i<buffer.len; i++) debug(buffer.data[i]);
+                //for (size_t i = 0; i<buffer.len; i++) debug(buffer.data[i]);
 
                 duckparser::parse(buffer.data, buffer.len);
 
@@ -88,13 +88,13 @@ void loop() {
         #else 
 
             if (buffer.len == 1 && buffer.data[0] == CMD_PARSER_RESET) {
-                debugln("Duckparser reset");
+                //debugln("Duckparser reset");
                 
                 duckparser::reset();
             } else {
-                debugs("Interpreting: ");
+                //debugs("Interpreting: ");
 
-                for (size_t i = 0; i<buffer.len; i++) debug(buffer.data[i]);
+                //for (size_t i = 0; i<buffer.len; i++) debug(buffer.data[i]);
 
                 duckparser::parse(buffer.data, buffer.len);
             }

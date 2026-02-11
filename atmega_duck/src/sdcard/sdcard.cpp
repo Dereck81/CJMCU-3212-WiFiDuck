@@ -393,11 +393,7 @@ namespace sdcard {
      * Extension filter:
      *   - .txt / .TXT 
      *   - .ds  / .DS 
-     *
-     * Note: There is a bug in the .ds check. The condition checks e[1] == '.'
-     * instead of e[0] == '.', which means it would only match filenames where
-     * the character at position len-3 is a dot (e.g., "x..ds"). This is likely
-     * unintentional and should be e[0] == '.'.
+     *   - .js  / .JS
      *
      * @param name Buffer to receive the filename (null-terminated)
      * @param maxLen Maximum length of the filename buffer
@@ -409,7 +405,7 @@ namespace sdcard {
         
         SdFile entry;
         while (entry.openNext(&f, O_RDONLY)) {
-            // Skip directories — only return regular files
+            // Skip directories — only return regular files 
             if (!entry.isDir()) {
                 entry.getName(name, maxLen);
                 uint8_t len = strlen(name);
@@ -422,7 +418,8 @@ namespace sdcard {
                     // Check for .txt (case-insensitive)
                     // OR check for .ds (case-insensitive, but there's a bug here)
                     if ((e[0] == '.') && (e[1] == 't' || e[1] == 'T') && (e[2] == 'x' || e[2] == 'X') && (e[3] == 't' || e[3] == 'T') ||
-                        (e[1] == '.') && (e[2] == 'd' || e[2] == 'D') && (e[3] == 's' || e[3] == 'S')) {
+                        (e[1] == '.') && (e[2] == 'd' || e[2] == 'D') && (e[3] == 's' || e[3] == 'S') || 
+                        (e[1] == '.') && (e[2] == 'j' || e[2] == 'J') && (e[3] == 's' || e[3] == 'S')) {
                         *size = entry.fileSize();
                         entry.close();
                         return true;
