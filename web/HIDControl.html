@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.8, minimal-ui">
+    <meta name="theme-color" content="#36393E">
+    <title>HID Control - WiFi Duck</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script src="script.js"></script>
+    <script src="HIDControl.js"></script>
+</head>
+
+<body>
+    <nav>
+        <ul class="menu">
+            <li><a href="index.html">WiFi Duck</a></li>
+            <li><a href="HIDControl.html">HID Control</a></li>
+            <li><a href="settings.html">Settings</a></li>
+            <li><a href="terminal.html">Terminal</a></li>
+            <li><a href="credits.html">About</a></li>
+        </ul>
+    </nav>
+
+    <div id="status"></div>
+
+    <main>
+        <section>
+            <h1>Connection Status</h1>
+            <div id="connectionTest" class="container">
+                <p>WebSocket: <span id="wsStatus" style="color: #d33;">Checking...</span></p>
+                <button class="white" id="reconnect" onclick="ws_init()">Reconnect</button>
+            </div>
+        </section>
+        <section>
+            <h1>WiFi Keyboard
+                <span class="status-indicator" id="keyboardStatus"></span>
+            </h1>
+
+            <div class="container">
+                <div class="row">
+                    <label><b>Keyboard Layout:</b></label>
+                    <label class="warn">It only works with active keyboards.</label>
+                    </br>
+                    <span>OS: </span>
+                    <select id="targetOs" class="cyber-select">
+                        <option value="win" selected>Windows</option>
+                        <option value="mac">macOS</option>
+                    </select>
+                    <span>Layout: </span>
+                    <select id="keyboardLayout" class="cyber-select"
+                            style="margin-left: 10px; padding: 8px; font-size: 14px;">
+                    </select>
+                    <button class="primary" id="changeLayout" onclick="changeLayout()">Apply</button>
+                    <span id="currentLayout" style="margin-left: 15px; color: #3c5; font-weight: bold;">Current:
+                        US</span>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Live Typing Mode</h2>
+            <div class="container" id="liveTyping">
+                <p>Type here - each key is sent in real-time to the PC:</p>
+                <textarea id="keyboardInput" class="keyboard-input"
+                    placeholder="Click here and start typing... Works on mobile too!" autofocus></textarea>
+
+                <div class="row">
+                    <label>
+                        <input type="checkbox" id="enableKeyboard" checked>
+                        <b>Enable live typing</b>
+                    </label>
+                    <label style="margin-left: 20px;">
+                        <input type="checkbox" id="showKeys" checked>
+                        Show debug log
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Send Text Block</h2>
+            <div class="container" id="sendTextBlockID">
+                <p>Paste or type text (single or multiple lines) and send all at once:</p>
+                <textarea id="textBlock" class="keyboard-input" style="min-height: 100px;"
+                    placeholder="Type or paste text here (supports multiple lines)&#10;Line 1&#10;Line 2&#10;Line 3&#10;&#10;Then click 'Send Text Block'"></textarea>
+                <div class="row">
+                    <button class="success" id="sendTextBlock" onclick="sendTextBlock()">Send Text Block</button>
+                    <button class="danger" id="clearTextBlock" onclick="clearTextBlock()">Clear</button>
+                    <label style="margin-left: 20px;">
+                        <input type="checkbox" id="addEnterBlock">
+                        Add final ENTER
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Virtual Mouse</h2>
+
+            <div class="container" id="virtualMouse">
+                <p><b>Touchpad:</b> Move your finger/mouse here</p>
+
+                <!-- TRACKPAD -->
+                <div id="trackpad" style="
+                    width: 100%;
+                    max-width: 400px;
+                    height: 220px;
+                    background: #1a1d21;
+                    border: 2px solid #333;
+                    border-radius: 10px;
+                    margin-bottom: 10px;
+                    touch-action: none;
+                    user-select: none;
+                ">
+                </div>
+
+                <!-- BUTTONS -->
+                <div class="row">
+                    <button class="key-btn" onclick="mouseClick(1)">🖱 Left</button>
+                    <button class="key-btn" onclick="mouseClick(2)">🖱 Right</button>
+                    <button class="key-btn" onclick="toggleDrag()" id="dragBtn">Drag</button>
+                </div>
+                <!-- SCROLL -->
+                <div class="row" style="margin-top:10px;">
+                    <button class="key-btn" onclick="mouseScroll(1)">⬆ Scroll</button>
+                    <button class="key-btn" onclick="mouseScroll(-1)">⬇ Scroll</button>
+                </div>
+
+                <div class="row" style="margin-top:10px;">
+                    <label>
+                        Scroll Amount:
+                        <input id="scrollAmount" type="range" min="1" max="127" value="1"></input>
+                    </label>
+                </div>
+
+                <!-- SPEED -->
+                <div class="row" style="margin-top:10px;">
+                    <label>
+                        Speed:
+                        <input type="range" id="mouseSpeed" min="1" max="5" value="2">
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section id="mouseSection">
+            <h2>Mouse Command Tracker</h2>
+            <div class="container">
+                <div id="mouseLog"
+                    style="background: #23272a; padding: 10px; height: 200px; font-family: monospace; max-height: 200px; overflow-y: auto; color: #3c5;">
+                    Move the trackpad to record commands...
+                </div>
+                
+                <div class="row" style="margin-top:10px; gap: 10px;">
+                    <button class="danger" onclick="clearMouseLog()">Reset</button>
+                    <button class="primary" onclick="copyMouseLog()">Copy Commands</button>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Virtual Keyboard, Special Keys & Shortcuts</h2>
+
+            <div class="row">
+                <h3>Function Keys</h3>
+            </div>
+            <div class="container" id="specialKeys">
+
+                <div class="row">
+                    <button class="key-btn" data-key="F1">F1</button>
+                    <button class="key-btn" data-key="F2">F2</button>
+                    <button class="key-btn" data-key="F3">F3</button>
+                    <button class="key-btn" data-key="F4">F4</button>
+                    <button class="key-btn" data-key="F5">F5</button>
+                    <button class="key-btn" data-key="F6">F6</button>
+                    <button class="key-btn" data-key="F7">F7</button>
+                    <button class="key-btn" data-key="F8">F8</button>
+                    <button class="key-btn" data-key="F9">F9</button>
+                    <button class="key-btn" data-key="F10">F10</button>
+                    <button class="key-btn" data-key="F11">F11</button>
+                    <button class="key-btn" data-key="F12">F12</button>
+                </div>
+            </div>
+
+             <div class="row">
+                <h3>Virtual Keyboard</h3>
+            </div>
+            <div class="container" id="virtualKeys">
+                <p><b>Click keys to type.</b> Click modifiers (CTRL, SHIFT, etc.) to activate them - they stay lit until
+                    you press another key.</p>
+                <!-- Numbers -->
+                <div class="key-row">
+                    <button class="white key-btn" onclick="typeChar('`')">` ~</button>
+                    <button class="white key-btn" onclick="typeChar('1')">1 !</button>
+                    <button class="white key-btn" onclick="typeChar('2')">2 @</button>
+                    <button class="white key-btn" onclick="typeChar('3')">3 #</button>
+                    <button class="white key-btn" onclick="typeChar('4')">4 $</button>
+                    <button class="white key-btn" onclick="typeChar('5')">5 %</button>
+                    <button class="white key-btn" onclick="typeChar('6')">6 ^</button>
+                    <button class="white key-btn" onclick="typeChar('7')">7 &</button>
+                    <button class="white key-btn" onclick="typeChar('8')">8 *</button>
+                    <button class="white key-btn" onclick="typeChar('9')">9 (</button>
+                    <button class="white key-btn" onclick="typeChar('0')">0 )</button>
+                    <button class="white key-btn" onclick="typeChar('-')">- _</button>
+                    <button class="white key-btn" onclick="typeChar('=')">= +</button>
+                    <button class="white key-btn" data-key="BACKSPACE" style="min-width: 70px;">⌫</button>
+                </div>
+
+                <!-- QWERTY Row -->
+                <div class="key-row">
+                    <button class="white key-btn" data-key="TAB" style="min-width: 70px;">TAB</button>
+                    <button class="white key-btn" onclick="typeChar('q')">Q</button>
+                    <button class="white key-btn" onclick="typeChar('w')">W</button>
+                    <button class="white key-btn" onclick="typeChar('e')">E</button>
+                    <button class="white key-btn" onclick="typeChar('r')">R</button>
+                    <button class="white key-btn" onclick="typeChar('t')">T</button>
+                    <button class="white key-btn" onclick="typeChar('y')">Y</button>
+                    <button class="white key-btn" onclick="typeChar('u')">U</button>
+                    <button class="white key-btn" onclick="typeChar('i')">I</button>
+                    <button class="white key-btn" onclick="typeChar('o')">O</button>
+                    <button class="white key-btn" onclick="typeChar('p')">P</button>
+                    <button class="white key-btn" onclick="typeChar('[')">[ {</button>
+                    <button class="white key-btn" onclick="typeChar(']')">] }</button>
+                    <button class="white key-btn" onclick="typeChar('\\')">\ |</button>
+                </div>
+
+                <!-- ASDF Row -->
+                <div class="key-row">
+                    <button class="white key-btn" data-key="CAPSLOCK" style="min-width: 80px;">CAPS</button>
+                    <button class="white key-btn" onclick="typeChar('a')">A</button>
+                    <button class="white key-btn" onclick="typeChar('s')">S</button>
+                    <button class="white key-btn" onclick="typeChar('d')">D</button>
+                    <button class="white key-btn" onclick="typeChar('f')">F</button>
+                    <button class="white key-btn" onclick="typeChar('g')">G</button>
+                    <button class="white key-btn" onclick="typeChar('h')">H</button>
+                    <button class="white key-btn" onclick="typeChar('j')">J</button>
+                    <button class="white key-btn" onclick="typeChar('k')">K</button>
+                    <button class="white key-btn" onclick="typeChar('l')">L</button>
+                    <button class="white key-btn" onclick="typeChar(';')">; :</button>
+                    <button class="white key-btn" onclick="typeChar('\'')">&#39; "</button>
+                    <button class="white key-btn" data-key="ENTER" style="min-width: 80px;">ENTER</button>
+                </div>
+
+                <!-- ZXCV Row -->
+                <div class="key-row">
+                    <button class="key-btn modifier-btn" data-mod="SHIFT" style="min-width: 100px;">⇧ SHIFT</button>
+                    <button class="white key-btn" onclick="typeChar('z')">Z</button>
+                    <button class="white key-btn" onclick="typeChar('x')">X</button>
+                    <button class="white key-btn" onclick="typeChar('c')">C</button>
+                    <button class="white key-btn" onclick="typeChar('v')">V</button>
+                    <button class="white key-btn" onclick="typeChar('b')">B</button>
+                    <button class="white key-btn" onclick="typeChar('n')">N</button>
+                    <button class="white key-btn" onclick="typeChar('m')">M</button>
+                    <button class="white key-btn" onclick="typeChar(',')">, &lt;</button>
+                    <button class="white key-btn" onclick="typeChar('.')">. &gt;</button>
+                    <button class="white key-btn" onclick="typeChar('/')">/ ?</button>
+                    <button class="key-btn modifier-btn" data-mod="SHIFT" style="min-width: 100px;">SHIFT ⇧</button>
+                </div>
+
+                <!-- Bottom Row -->
+                <div class="key-row">
+                    <button class="key-btn modifier-btn" data-mod="CTRL" style="min-width: 70px;">CTRL</button>
+                    <!-- WIN SOLO -->
+                    <button class="white key-btn" onclick="sendKeyCommand('GUI')" style="min-width:70px;">
+                        ⊞ WIN
+                    </button>
+                    <!-- WIN COMBINACIONES -->
+                    <button class="key-btn modifier-btn" data-mod="GUI" style="min-width:90px;">
+                        ⊞ WIN+
+                    </button>
+                    <button class="key-btn modifier-btn" data-mod="ALT" style="min-width: 70px;">ALT</button>
+                    <button class="white key-btn" onclick="typeChar(' ')" style="min-width: 280px;">SPACE</button>
+                    <button class="key-btn modifier-btn" data-mod="ALT" style="min-width: 70px;">ALT</button>
+                    <button class="white key-btn" data-key="MENU" style="min-width: 70px;">☰</button>
+                    <button class="key-btn modifier-btn" data-mod="CTRL" style="min-width: 70px;">CTRL</button>
+                </div>
+            </div>
+
+            <div class="row">
+                <h3>Navigation</h3>
+            </div>
+            <div class="container" id="navigationKeys">
+                <div class="row">
+                    <button class="key-btn" data-key="HOME">HOME</button>
+                    <button class="key-btn" data-key="END">END</button>
+                    <button class="key-btn" data-key="PAGEUP">PG UP</button>
+                    <button class="key-btn" data-key="PAGEDOWN">PG DN</button>
+                    <button class="key-btn" data-key="INSERT">INS</button>
+                    <button class="key-btn" data-key="DELETE">DEL</button>
+                    <button class="key-btn" data-key="ESC">ESC</button>
+                    <button class="key-btn" data-key="PRINTSCREEN">PRINTSCREEN</button>
+                </div>
+                <div class="row">
+                    <button class="key-btn" data-key="UP">↑</button>
+                </div>
+                <div class="row">
+                    <button class="key-btn" data-key="LEFT">←</button>
+                    <button class="key-btn" data-key="DOWN">↓</button>
+                    <button class="key-btn" data-key="RIGHT">→</button>
+                </div>
+            </div>
+
+            <div class="row">
+                <h3>Quick Shortcuts</h3>
+            </div>
+            <div class="container">
+                <div class="row" id="shortCuts">
+                    <button class="primary" onclick="sendCombo('CTRL', 'c')">Copy</button>
+                    <button class="primary" onclick="sendCombo('CTRL', 'v')">Paste</button>
+                    <button class="primary" onclick="sendCombo('CTRL', 'a')">Select All</button>
+                    <button class="primary" onclick="sendCombo('CTRL', 'z')">Undo</button>
+                    <button class="warn" onclick="sendCombo('ALT', 'F4')">Alt+F4</button>
+                    <button class="warn" onclick="sendCombo('CTRL', 'SHIFT', 'ESC')">Task Manager</button>
+                    <button class="warn" onclick="sendCombo('GUI', 'r')">Win+R</button>
+                    <button class="warn" onclick="sendCombo('GUI', 'e')">Explorer</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="debugSection" style="display: none;">
+            <h2>Debug Log</h2>
+            <div class="container">
+                <div id="debugLog"
+                    style="background: #23272a; padding: 10px; font-family: monospace; max-height: 200px; overflow-y: auto; color: #3c5;">
+                    Starting debug...
+                </div>
+                </br>
+                <button class="white" onclick="document.getElementById('debugLog').innerHTML = 'Starting debug... '">Clear
+                    Log</button>
+            </div>
+        </section>
+
+        <script>
+            setInterval(function () {
+                var activeWS = (window.WSManager && window.WSManager.ws) || window.ws;
+                var s = document.getElementById("wsStatus");
+                
+                if (activeWS && activeWS.readyState === WebSocket.OPEN) {
+                    if (s) {
+                        s.textContent = "Connected ✓";
+                        s.style.color = "#3c5";
+                    }
+                } else {
+                    if (s) {
+                        s.textContent = "Disconnected";
+                        s.style.color = "#d33";
+                    }
+                }
+            }, 3000);
+        </script>
+    </main>
+
+    <footer>
+        <a href="https://github.com/spacehuhntech/WiFiDuck" target="_blank">Original source</a>
+        </br></br>
+        <a href="https://github.com/Dereck81/CJMCU-3212-WiFiDuck" target="_blank">Code adapted for the CJMCU-3212</a>
+        <br><br>
+        <span id="version"></span><br>
+        Copyright (c) 2021 Spacehuhn Technologies
+    </footer>
+</body>
+
+</html>

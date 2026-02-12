@@ -1,320 +1,390 @@
 /*
    This software is licensed under the MIT License. See the license file for details.
    Source: https://github.com/spacehuhntech/WiFiDuck
+
+   Modified and adapted by:
+    - Dereck81
  */
+// ===== File Manager (SPIFFS) =====
+class FileManager {
+  constructor() {
+    this.fileList = "";
+  }
+  
+  updateList() {
+    ws_send("mem", (msg) => {
+      const lines = msg.split(/\n/);
+      if(lines.length === 1) {
+        console.error("Malformed response:", msg);
+        return;
+      }
 
+      const byte = lines[0].split(" ")[0];
+      const used = lines[1].split(" ")[0];
+      const free = lines[2].split(" ")[0];
+      const percent = Math.floor(byte / 100);
+      const freepercent = Math.floor(free / percent);
 
-// ========== Global Variables ========== //
+      E("freeMemory").innerHTML = `${used} byte used (${freepercent}% free)`;
+      this.fileList = "";
 
-// ! List of files returned by "ls" command
-var file_list = "";
+      ws_send("ls", (csv) => {
+        this.fileList += csv;
+        this.renderTable();
+      });
+    });
+  }
+  
+  renderTable() {
+    const lines = this.fileList.split(/\n/);
+    let html = "<thead><tr><th>File</th><th>Size</th><th>Actions</th></tr></thead><tbody>";
 
-// ! Variable to save interval for updating status continously
-var status_interval = undefined;
+    lines.forEach((line, i) => {
+      const data = line.split(" ");
+      const fileName = data[0];
+      const fileSize = Utils.formatBytes(parseInt(data[1]));
 
-// ! Unsaved content in the editor
-var unsaved_changed = false;
-
-// ! Flag if editor has loaded a file yet
-var file_opened = false;
-
-// ========== Global Functions ========== //
-
-// ===== Value Getters ===== //
-function get_new_filename() {
-  return E("newFile").value;
-}
-
-function get_editor_filename() {
-  return E("editorFile").value;
-}
-
-function set_editor_filename(filename) {
-  return E("editorFile").value = filename;
-}
-
-function get_editor_content() {
-  var content = E("editor").value;
-
-  if (!content.endsWith("\n"))
-    content = content + "\n";
-
-  return content;
-}
-
-// ! Update status until it's no longer "running"
-function check_status() {
-  if (current_status.includes("running") || current_status.includes("saving"))
-    ws_update_status();
-  else
-    stop_status_interval();
-}
-
-// ! Start interval that checks and updates the status continously
-function start_status_interval() {
-  if (status_interval) return; // !< Only continue if status_interval not set
-
-  ws_update_status(); // !< Get current status
-  status_interval = setInterval(check_status, 500); // !< Start interval
-}
-
-// ! Stop interval that checks and updates the status continously
-function stop_status_interval() {
-  if (!status_interval) return; // !< Only continue if status_interval was set
-
-  // ! Stop interval and unset variable
-  clearInterval(status_interval);
-  status_interval = undefined;
-}
-
-// ! Append string to script content
-function append(str) {
-  E("editor").value += str;
-}
-
-// ! Updates file list and memory usage
-function update_file_list() {
-  ws_send("mem", function(msg) {
-    var lines = msg.split(/\n/);
+      if (fileName.length > 0) {
+        if (i === 0 && !Editor.fileOpened) this.read(fileName);
+        html += `<tr><td><span class='file-icon'>📄</span> ${fileName}</td><td>${fileSize}</td><td>`;
+        html += `<button class="danger" onclick="delete_('${fileName}')">delete</button> `
+        html += `<button class="primary" onclick="read('${fileName}')">edit</button> `;
+        html += `<button class="primary" onclick="autorun('${fileName}')">set autorun</button> `;
+        html += `<button class="warn" onclick="run('${fileName}')">run</button></td></tr>`;
+      }
+    });
+    html += "</tbody>";
+    E("scriptTable").innerHTML = html;
+  }
+  
+  read(fileName) {
+    Editor.currentStorage = "SPIFFS";
     
-    if(lines.length == 1) {
-      console.error("Malformed response:");
-      console.error(msg);
+    let js = false;
+    
+    if (fileName.toLowerCase().endsWith(".js")) js = true;
+    
+    Editor.updateSourceUI("SPIFFS", js);
+    
+    this.stop(fileName);
+    stopInterpreter();
+    
+    fileName = fixFileName(fileName);
+    
+    if (js) {
+      E("editorFileJS").value = fileName;
+      E("editorJS").value = "";
+    } else {
+      E("editorFile").value = fileName;
+      E("editor").value = "";
+    }
+    
+    ws_send(`stream "${fileName}"`, log_ws);
+    this.readStream(js);
+    
+    if (js) Editor.fileOpenedJS = true;
+    else Editor.fileOpened = true;
+  }
+  
+  readStream(js = false) {
+    ws_send("read", (content) => {
+      if (content !== "> END") {
+        if (js) E("editorJS").value += content;
+        else E("editor").value += content;
+        this.readStream(js);
+        status("reading...");
+      } else {
+        ws_send("close", log_ws);
+        ws_update_status();
+      }
+    });
+  }
+  
+  create(fileName) {
+    const validatedName = Utils.isValidName(fileName, "SPIFFS");
+    if (!validatedName) return;
+
+    this.stop(fileName);
+    if (this.fileList.includes(fileName + " ")) {
+      this.read(fileName);
+    } else {
+      E("editorFile").value = fileName;
+      E("editor").value = "";
+      ws_send(`create "${fileName}"`, log_ws);
+      E("newFile").value = "/";
+      this.updateList();
+    }
+  }
+  
+  write(fileName, content) {
+    this.stop(fileName);
+    fileName = fixFileName(fileName);
+    ws_send('remove "/temporary_script"', log_ws);
+    ws_send('create "/temporary_script"', log_ws);
+    ws_send('stream "/temporary_script"', log_ws);
+
+    const pktsize = 1024;
+    for (let i = 0; i < Math.ceil(content.length / pktsize); i++) {
+      const begin = i * pktsize;
+      const end = Math.min(begin + pktsize, content.length);
+      ws_send_raw(content.substring(begin, end), () => status("saving..."));
+    }
+
+    ws_send("close", log_ws);
+    ws_send(`remove "${fileName}"`, log_ws);
+    ws_send(`rename "/temporary_script" "${fileName}"`, log_ws);
+    ws_update_status();
+  }
+  
+  remove(fileName) {
+    this.stop(fileName);
+    stopInterpreter();
+    ws_send(`remove "${fixFileName(fileName)}"`, log_ws);
+    this.updateList();
+    Editor.unsavedChanged = true;
+    Editor.unsavedChangedJS = true;
+  }
+
+  delete(fileName) {
+    if (confirm(`Delete ${fileName}?`)) remove(fileName);
+  }
+  
+  run(fileName) {
+    if (fileName.toLowerCase().endsWith(".js")) {
+      alert("To run a JS file, you first have to read the file and then press the run button in the JS Interpreter.");
       return;
     }
 
-    var byte = lines[0].split(" ")[0];
-    var used = lines[1].split(" ")[0];
-    var free = lines[2].split(" ")[0];
+    ws_send(`run "${fixFileName(fileName)}"`, log_ws);
+    start_status_interval();
+  }
+  
+  stop(fileName) {
+    ws_send(`stop "${fixFileName(fileName)}"`, log_ws, true);
+  }
+  
+  stopAll() {
+    ws_send("stop", log_ws, true);
+  }
+  
+  format() {
+    if (confirm("Format SPIFFS? This will delete all scripts!")) {
+      ws_send("format", log_ws);
+      alert("Formatting will take a minute.\nYou have to reconnect afterwards.");
+    }
+  }
 
-    var percent = Math.floor(byte / 100);
-    var freepercent = Math.floor(free / percent);
-
-    E("freeMemory").innerHTML = used + " byte used (" + freepercent + "% free)";
-
-    file_list = "";
-
-    ws_send("ls", function(csv) {
-      file_list += csv;
-
-      var lines = file_list.split(/\n/);
-      var tableHTML = "<thead>\n";
-
-      tableHTML += "<tr>\n";
-      tableHTML += "<th>File</th>\n";
-      tableHTML += "<th>Byte</th>\n";
-      tableHTML += "<th>Actions</th>\n";
-      tableHTML += "</tr>\n";
-      tableHTML += "</thead>\n";
-      tableHTML += "<tbody>\n";
-
-      for (var i = 0; i < lines.length; i++) {
-        var data = lines[i].split(" ");
-        var fileName = data[0];
-        var fileSize = data[1];
-
-        if (fileName.length > 0) {
-          if (i == 0 && !file_opened) {
-            read(fileName);
-          }
-          tableHTML += "<tr>\n";
-          tableHTML += "<td>" + fileName + "</td>\n";
-          tableHTML += "<td>" + fileSize + "</td>\n";
-          tableHTML += "<td>\n";
-          tableHTML += "<button class=\"primary\" onclick=\"read('" + fileName + "')\">edit</button>\n";
-          tableHTML += "<button class=\"warn\" onclick=\"run('" + fileName + "')\">run</button>\n";
-          tableHTML += "</tr>\n";
-        }
-      }
-      tableHTML += "</tbody>\n";
-
-      E("scriptTable").innerHTML = tableHTML;
-    });
-  });
-}
-
-// ! Format SPIFFS
-function format() {
-  if (confirm("Format SPIFFS? This will delete all scripts!")) {
-    ws_send("format", log_ws);
-    alert("Formatting will take a minute.\nYou have to reconnect afterwards.");
+  autorun(fileName) {
+    if (confirm("Run this script automatically on startup?\nYou can disable it in the settings."))
+      ws_send(`set autorun "${fixFileName(fileName)}"`, log_ws);
   }
 }
 
-// ! Run script
-function run(fileName) {
-  ws_send("run \"" + fixFileName(fileName) + "\"", log_ws);
+const Files = new FileManager();
+
+const update_file_list = () => Files.updateList();
+const read = (name) => Files.read(name);
+const create = (name) => Files.create(name);
+const remove = (name) => Files.remove(name);
+const delete_ = (name) => Files.delete(name);
+const run = (name) => Files.run(name);
+const stop = (name) => Files.stop(name);
+const stopAll = () => Files.stopAll();
+const format = () => Files.format();
+const autorun = (name) => Files.autorun(name);
+
+let file_list = "";
+
+Object.defineProperty(window, 'file_list', {
+  get: () => Files.fileList
+});
+
+// ===== Editor =====
+class EditorManager {
+  constructor() {
+    this.unsavedChanged = false;
+    this.fileOpened = false;
+    this.unsavedChangedJS = false;
+    this.fileOpenedJS = false;
+    this.currentStorage = "SPIFFS";
+    this.currentStorageJS = "SPIFFS";
+  }
+
+  updateSourceUI(storage, js = false) {
+    if (js) this.currentStorageJS = storage;
+    else this.currentStorage = storage;
+    
+    const fileInput = js ? E("editorFileJS") : E("editorFile");
+    const badge = js ? E("storageBadgeJS") : E("storageBadge");
+
+    if (badge) {
+        badge.innerText = storage;
+        badge.className = storage === "SPIFFS" ? "badge-spiffs" : "badge-sdcard";
+    }
+    
+    if (storage === "SDCARD" && fileInput) {
+        fileInput.value = fileInput.value.replace(/\//g, '');
+    }
+  }
+  
+  getFilename(js = false) {
+    if (js) return E("editorFileJS").value; 
+    return E("editorFile").value; 
+  }
+
+  setFilename(name, js = false) {
+    if (js) E("editorFileJS").value = name; 
+    else E("editorFile").value = name; 
+  }
+
+  getContent(js = false) {
+    let content = js ? E("editorJS").value : E("editor").value;
+    if (!content.endsWith("\n")) content += "\n";
+    return content;
+  }
+
+  append(str, js = false) {
+    if (js) E("editorJS").value += str; 
+    else E("editor").value += str; 
+  }
+  
+  save(target = null, js = false) {
+
+    const dest = target || (js ? this.currentStorageJS : this.currentStorage);
+    const rawName = this.getFilename(js);
+
+    const validatedName = Utils.isValidName(rawName, dest);
+    
+    if (!validatedName) return;
+
+    if (js && !validatedName.toLowerCase().endsWith(".js")) {
+      alert("Only files with the .js extension are allowed.");
+      return;
+    }
+
+    this.setFilename(validatedName, js);
+    
+    if (dest === "SDCARD") write_sd_file(this.getFilename(js), this.getContent(js));
+    else Files.write(this.getFilename(js), this.getContent(js));
+
+    if (js) {
+      this.unsavedChangedJS = false;
+      E("editorinfoJS").innerHTML = `saved (${dest})`;
+    } else {
+      this.unsavedChanged = false;
+      E("editorinfo").innerHTML = `saved (${dest})`;
+    }
+  }
+
+  runCurrent() {
+    const fileName = this.getFilename();
+    if (!fileName) return;
+
+    if (this.unsavedChanged) {
+      alert("You must save the file changes before running");
+      return;
+    }
+
+    if (this.currentStorage === "SDCARD") {
+      log("Running from SD: " + fileName);
+      run_sd_script(fileName);
+    } else {
+      log("Running from SPIFFS: " + fileName);
+      run(fileName);
+    }
+  }
+  
+  markUnsaved(js = false) {
+    if (js) {
+      this.unsavedChangedJS = true;
+      E("editorinfoJS").innerHTML = "unsaved changes";
+    }else {
+      this.unsavedChanged = true;
+      E("editorinfo").innerHTML = "unsaved changes";
+    }
+  }
+}
+
+const Editor = new EditorManager();
+
+const get_editor_filename = (js = false) => Editor.getFilename(js);
+
+const set_editor_filename = (name, js = false) => Editor.setFilename(name, js);
+
+const get_editor_content = (js = false) => Editor.getContent(js);
+
+const append = (str, js = false) => Editor.append(str, js);
+
+const save = (target, js = false) => Editor.save(target, js);
+
+const run_current = (target) => Editor.runCurrent(target);
+
+let unsaved_changed = false;
+let unsaved_changed_js = false;
+
+let file_opened = false;
+let file_opened_js = false;
+
+Object.defineProperty(window, 'unsaved_changed', {
+  get: () => Editor.unsavedChanged,
+  set: (val) => Editor.unsavedChanged = val
+});
+Object.defineProperty(window, 'file_opened', {
+  get: () => Editor.fileOpened,
+  set: (val) => Editor.fileOpened = val
+});
+
+Object.defineProperty(window, 'unsaved_changed_js', {
+  get: () => Editor.unsavedChangedJS,
+  set: (val) => Editor.unsavedChangedJS = val
+});
+Object.defineProperty(window, 'file_opened_js', {
+  get: () => Editor.fileOpenedJS,
+  set: (val) => Editor.fileOpenedJS = val
+});
+
+function ws_connected() {
+  Files.updateList();
+  ws_update_status();
   start_status_interval();
 }
 
-// ! Stop running specific script
-function stop(fileName) {
-  ws_send("stop \"" + fixFileName(fileName) + "\"", log_ws, true);
-}
-
-// ! Stop running all scripts
-function stopAll() {
-  ws_send("stop", log_ws, true);
-}
-
-// ! Recursive read from stream
-function read_stream() {
-  ws_send("read", function(content) {
-    if (content != "> END") {
-      E("editor").value += content;
-      read_stream();
-      status("reading...");
-    } else {
-      ws_send("close", log_ws);
-      ws_update_status();
-    }
-  });
-}
-
-// ! Open stream to a file
-function read(fileName) {
-  stop(fileName);
-
-  fileName = fixFileName(fileName);
-
-  set_editor_filename(fileName);
-  E("editor").value = "";
-
-  ws_send("stream \"" + fileName + "\"", log_ws);
-
-  read_stream(); // !< Read file contents (recursively)
-
-  file_opened = true;
-}
-
-// ! Create a new file
-function create(fileName) {
-  stop(fileName);
-
-  fileName = fixFileName(fileName);
-
-  if (file_list.includes(fileName + " ")) {
-    read(fileName);
-  } else {
-    set_editor_filename(fileName);
-    E("editor").value = "";
-
-    ws_send("create \"" + fileName + "\"", log_ws);
-    update_file_list();
-  }
-}
-
-// ! Delete a file
-function remove(fileName) {
-  stop(fileName);
-  ws_send("remove \"" + fixFileName(fileName) + "\"", log_ws);
-  update_file_list();
-  unsaved_changed = true;
-}
-
-function autorun(fileName) {
-  ws_send("set autorun \"" + fixFileName(fileName) + "\"", log_ws);
-}
-
-// ! Write content to file
-function write(fileName, content) {
-  stop(fileName);
-
-  fileName = fixFileName(fileName);
-
-  ws_send("remove \"/temporary_script\"", log_ws);
-  ws_send("create \"/temporary_script\"", log_ws);
-
-  ws_send("stream \"/temporary_script\"", log_ws);
-
-  var ws_send_log = function(msg) {
-    status("saving...");
-    log_ws(msg);
-  };
-
-  var pktsize = 1024;
-
-  for (var i = 0; i < Math.ceil(content.length / pktsize); i++) {
-    var begin = i * pktsize;
-    var end = begin + pktsize;
-    if (end > content.length) end = content.length;
-
-    ws_send_raw(content.substring(begin, end), ws_send_log);
-  }
-
-  ws_send("close", log_ws);
-
-  ws_send("remove \"" + fileName + "\"", log_ws);
-  ws_send("rename \"/temporary_script\" \"" + fileName + "\"", log_ws);
-
-  ws_update_status();
-}
-
-// ! Save file that is currently open in the editor
-function save() {
-  write(get_editor_filename(), get_editor_content());
-  unsaved_changed = false;
-  E("editorinfo").innerHTML = "saved";
-  update_file_list();
-}
-
-// ! Function that is called once the websocket connection was established
-function ws_connected() {
-  update_file_list();
-}
-
-// ========== Startup ========== //
 window.addEventListener("load", function() {
   E("reconnect").onclick = ws_init;
   E("scriptsReload").onclick = update_file_list;
   E("format").onclick = format;
   E("stop").onclick = stopAll;
+  
+  E("saveSpiffs").onclick = () => save("SPIFFS");
+  E("saveSdcard").onclick = () => save("SDCARD");
 
-  E("editorReload").onclick = function() {
-    read(get_editor_filename());
-  };
+  E("editorDownload").onclick = () => download_txt(get_editor_filename(), get_editor_content());
+  E("editorStop").onclick = () => stop(get_editor_filename());
+  
+  E("stopSdcard").onclick = () => stop_sd();
 
-  E("editorSave").onclick = save;
+  E("editorRun").onclick = () => run_current();
 
-  E("editorDelete").onclick = function() {
-    if (confirm("Delete " + get_editor_filename() + "?")) {
-      remove(get_editor_filename());
-    }
-  };
+  E("editor").onkeyup = () => Editor.markUnsaved();
 
-  E("editorDownload").onclick = function() {
-    download_txt(get_editor_filename(), get_editor_content());
-  };
+  if (E("scriptsSDReload")) 
+    E("scriptsSDReload").onclick = reload_sd_list;
 
-  E("editorStop").onclick = function() {
-    stop(get_editor_filename());
-  }
+  // JS
 
-  E("editorRun").onclick = function() {
-    if (unsaved_changed) {
-      save();
-    }
+  E("saveSpiffsJS").onclick = () => save("SPIFFS", true);
+  E("saveSdcardJS").onclick = () => save("SDCARD", true);
 
-    run(get_editor_filename());
-  };
+  E("editorDownloadJS").onclick = () => download_txt(get_editor_filename(true), get_editor_content(true));
+  E("editorJS").onkeyup = () => Editor.markUnsaved(true);
 
-  E("editor").onkeyup = function() {
-    unsaved_changed = true;
-    E("editorinfo").innerHTML = "unsaved changes";
-  }
-
-  E("editorAutorun").onclick = function() {
-    if (confirm("Run this script automatically on startup?\nYou can disable it in the settings."))
-      autorun(get_editor_filename());
-  }
-
-  // ! Make all <code>s append to the editor when clicked
-  var codes = document.querySelectorAll("code");
-  for (var i = 0; i < codes.length; i++) {
-    codes[i].addEventListener("click", function() {
+  E("stopSdcardJS").onclick = () => stop_sd();
+ 
+  document.querySelectorAll("code").forEach(code => {
+    code.addEventListener("click", function() {
       append(this.innerHTML + " \n");
     });
-  }
+  });
 
   ws_init();
 }, false);

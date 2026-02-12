@@ -1,6 +1,9 @@
 <!--
     This software is licensed under the MIT License. See the license file for details.
     Source: https://github.com/spacehuhntech/WiFiDuck
+
+    Modified and adapted by:
+    - Dereck81
 -->
 <!DOCTYPE html>
 <html>
@@ -15,11 +18,14 @@
         <link rel="stylesheet" type="text/css" href="style.css">
         <script src="script.js"></script>
         <script src="index.js"></script>
+        <script src="sd_handler.js"></script>
+        <script src="interpreter.js"></script>
     </head>
     <body>
         <nav>
             <ul class="menu">
                 <li><a href="index.html">WiFi Duck</a></li>
+                <li><a href="HIDControl.html">HID Control</a></li>
                 <li><a href="settings.html">Settings</a></li>
                 <li><a href="terminal.html">Terminal</a></li>
                 <li><a href="credits.html">About</a></li>
@@ -29,277 +35,862 @@
         <main>
             <section>
                 <h1>Status</h1>
-                <div class="row">
-                    <p><b>Storage: </b><span id="freeMemory">-</span></p>
-                    <button class="danger" id="format">format</button>
-                    <button class="warn" id="stop">stop</button>
-                    <button class="white" id="reconnect">reconnect</button>
-                </div>
-            </section>
-            <section>
-                <h1>Scripts <a class="reload" id="scriptsReload">&#x21bb;</a></h1>
-                <table class="table" id="scriptTable"></table>
-                <div class="row">
-                    <input placeholder="Filename /<name>" type="text" class="smooth" value="/" id="newFile"/>
-                    <button class="success" onclick="create(get_new_filename())">create</button>
-                </div>
-            </section>
-            <section>
-                <h1>Editor <a class="reload" id="editorReload">&#x21bb;</a></h1>
-                <div class="row">
-                    <input placeholder="Filename /<name>" type="text" class="smooth" value="/" id="editorFile">
-                    <button class="danger" id="editorDelete">delete</button>
-                    <button class="primary" id="editorDownload">download</button>
-                    <button class="primary" id="editorAutorun">Enable autorun</button>
-                </div>
-                <div class="row">
-                    <textarea class="smooth" id="editor"></textarea>
-                </div>
-                <div class="row">
-                    <div class="debugger">
-                        Output: <span id="editorinfo">saved</span>
+                <div class="container">                    
+                    <div class="row">
+                        <p><b>Storage: </b><span id="freeMemory">-</span></p>
+                        <button class="danger" id="format">format</button>
+                        <button class="warn" id="stop">stop</button>
+                        <button class="white" id="reconnect">reconnect</button>
                     </div>
                 </div>
-                <div class="row">
-                    <div id="editor-primary-buttons">
-                        <button class="success" id="editorSave">save</button>
-                        <button class="warn" id="editorRun">run</button>
-                        <button class="danger" id="editorStop">stop</button>
+            </section>
+            <section>
+                <h1>Scripts SPIFFS (Internal)<button class="reload" id="scriptsReload">&#x21bb;</button></h1>
+                <div class="container">
+                    <table class="table" id="scriptTable"></table>
+                    <div class="row">
+                        <input placeholder="Filename /<name>" type="text" class="smooth" value="/" id="newFile"/>
+                        <button class="success" id="scriptCreate" onclick="create(document.getElementById('newFile').value)">create</button>
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h1>Scripts SDCARD<button class="reload" id="scriptsSDReload">&#x21bb;</button></h1>
+                <div class="container">
+                    <table class="table" id="scriptSDTable"></table>
+                </div>
+            </section>
+            <section>
+                <h1>Editor 
+                    <span id="storageBadge" class="badge-spiffs">SPIFFS</span> 
+                </h1>
+                <div class="container">
+                    <div class="row">
+                        <input placeholder="Filename /<name>" type="text" class="smooth" value="/" id="editorFile">
+                        <button class="primary" id="editorDownload">download</button>
+                    </div>
+                    <div class="row">
+                        <textarea class="smooth" id="editor" placeholder="Write your script here..." spellcheck="false"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="debugger">
+                            Output: <span id="editorinfo">saved</span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="debugger">
+                            NOTE: Writing to the SD card can take time if the script is very long.
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div id="editor-primary-buttons">
+                            <button class="success" id="saveSpiffs">Save to SPIFFS</button>
+                            <button class="success" id="saveSdcard">Save to SD</button>
+                            <button class="warn" id="editorRun">run</button>
+                            <button class="danger" id="editorStop">stop</button>
+                            <button class="danger" id="stopSdcard">stop sd</button>
+                        </div>
+                    </div>
+                    
+                </div>
+            </section>
+            <section>
+                <h1>JS Interpreter (BETA)
+                    <span id="storageBadgeJS" class="badge-spiffs">SPIFFS</span>
+                </h1>
+                <div class="container">
+                    <div class="row">
+                        <input placeholder="Filename /<name>" type="text" class="smooth" value="/" id="editorFileJS">
+                        <button class="primary" id="editorDownloadJS">download</button>
+                    </div>
+                    <div class="row">
+                        <textarea class="smooth" id="editorJS" placeholder="Write your script here..." spellcheck="false"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="debugger">
+                            Output: <span id="editorinfoJS">saved</span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div id="editor-primary-buttons">
+                            <button class="success" id="saveSpiffsJS">Save to SPIFFS</button>
+                            <button class="success" id="saveSdcardJS">Save to SD</button>
+                            <button class="warn" id="runJS">Run</button>
+                            <button class="danger" id="stopJS">Stop</button>
+                            <button class="danger" id="stopSdcardJS">stop sd</button>
+                            <button class="warn" id="convertJS">Convert to DuckyScript</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h2>DuckyScript Output (BETA)</h2>
+                <div class="container">
+                    <div id="duckyscriptOutput"
+                        style="background: #23272a; padding: 10px; height: 200px; font-family: monospace; max-height: 200px; overflow-y: auto; color: #3c5;">
+                    </div>
+                    <div class="row" style="margin-top:10px; gap: 10px;">
+                        <button class="danger" onclick="clearDuckyScriptOutput()">Reset</button>
+                        <button class="primary" onclick="copyDuckyScriptOutput()">Copy Commands</button>
                     </div>
                 </div>
             </section>
             <section>
                 <!--<h1>Documentation</h1>-->
+                
                 <h2>Scripting</h2>
-                <h3>Basics</h3>
-                <p>
-                    Keys are separated by a single space.<br>
-                    Everything written in a single line gets pressed and released at the same time.<br>
-                    To write text, use the STRING function.
-                </p>
-                <table>
-                    <thead>
+                <h3>JS Interpreter - Notes & Limitations</h3>
+                <div class="container">
+                    <div>
+                        <p><strong>NOTE:</strong> Before using the JavaScript Interpreter, keep the following limitations in mind:</p>
+                        <ul>
+                            <li>
+                                If you use infinite loops or conditional loops, <b>all HID instructions must use <code>await</code></b>. 
+                                Otherwise, the UI will freeze.
+                            </li>
+                            <li>
+                                <b>Parallel execution is not supported.</b> Using Promise.all() or concurrent calls may cause mixed commands or ACK errors.
+                            </li>
+                            <li>
+                                <b>Async functions are allowed</b>, but they must always be awaited. They do not behave like standard JavaScript async
+                                functions and may mix HID commands if misused.
+                            </li>
+                            <li>
+                                Access to browser APIs is blocked. You cannot use 
+                                <code>document</code>, <code>window</code>, <code>fetch</code>, <code>XHR</code>, <code>WebRTC</code>, etc.
+                            </li>
+                            <li>
+                                <b>Infinite loops and <code>await</code> are not allowed during conversion to DuckyScript.</b>
+                            </li>
+                            <li>
+                                The function <code>repeat(count, fn)</code> is only available for the DuckyScript converter.
+                                It does not execute commands during JS runtime execution.
+                            </li>
+                            <li>
+                                <code>repeat()</code> does not generate the native <code>REPEAT</code> command.
+                                Instead, it expands the commands inline the specified number of times.
+                            </li>
+                            <li>
+                                Some DuckyScript commands are <b>not supported</b> in this execution mode:
+                                <code>LSTRING</code>, <code>REPEAT</code>, <code>LOOP</code>, <code>DELAY</code>.
+                            </li>
+                            <li>
+                                This execution mode is <b>slower than others</b>, but allows more flexibility and the use of JavaScript logic.
+                            </li>
+                            <li>
+                                Please also note that this mode can be somewhat unstable and may occasionally produce a TIMEOUT error.
+                            </li>
+                            <li>
+                                Improvements are planned for the future.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <h3>JS Interpreter - Available Functions</h3>
+                <div class="container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Function</th>
+                                <th>Example</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>comment(txt)</code></td>
+                                <td><code>comment("Hello")</code></td>
+                                <td>Adds a comment (console only, not sent to device).</td>
+                            </tr>
+                            <tr>
+                                <td><code>type(txt)</code></td>
+                                <td><code>type("Hello")</code></td>
+                                <td>Types text without pressing ENTER.</td>
+                            </tr>
+                            <tr>
+                                <td><code>typeln(txt)</code></td>
+                                <td><code>typeln("Hello")</code></td>
+                                <td>Types text and presses ENTER at the end.</td>
+                            </tr>
+                            <tr>
+                                <td><code>press(...keys)</code></td>
+                                <td><code>press("CTRL", "ALT", "DEL")</code></td>
+                                <td>Presses one or more keys simultaneously.</td>
+                            </tr>
+                            <tr>
+                                <td><code>combo(...keys)</code></td>
+                                <td><code>combo("GUI", "r")</code></td>
+                                <td>Alias for <code>press()</code>.</td>
+                            </tr>
+                            <tr>
+                                <td><code>delay(ms)</code></td>
+                                <td><code>delay(500)</code></td>
+                                <td>Pauses execution for the specified milliseconds.</td>
+                            </tr>
+                            <tr>
+                                <td><code>enter()</code></td>
+                                <td><code>enter()</code></td>
+                                <td>Sends ENTER key.</td>
+                            </tr>
+                            <tr>
+                                <td><code>tab()</code></td>
+                                <td><code>tab()</code></td>
+                                <td>Sends TAB key.</td>
+                            </tr>
+                            <tr>
+                                <td><code>esc()</code></td>
+                                <td><code>esc()</code></td>
+                                <td>Sends ESC key.</td>
+                            </tr>
+                            <tr>
+                                <td><code>keycode(...codes)</code></td>
+                                <td><code>keycode("0x02", "0x04")</code></td>
+                                <td>Sends raw HID keycodes.</td>
+                            </tr>
+                            <tr>
+                                <td><code>led(led, active)</code></td>
+                                <td><code>led("RIGHT", true)</code></td>
+                                <td>Turns device LEDs on or off.</td>
+                            </tr>
+                            <tr>
+                                <td><code>locale(loc)</code></td>
+                                <td><code>locale("US")</code></td>
+                                <td>Sets keyboard layout.</td>
+                            </tr>
+                            <tr>
+                                <td><code>move(x, y)</code></td>
+                                <td><code>move(50, -20)</code></td>
+                                <td>Moves mouse cursor.</td>
+                            </tr>
+                            <tr>
+                                <td><code>click(btn)</code></td>
+                                <td><code>click(1)</code></td>
+                                <td>Mouse click.</td>
+                            </tr>
+                            <tr>
+                                <td><code>scroll(amount)</code></td>
+                                <td><code>scroll(5)</code></td>
+                                <td>Mouse wheel scroll.</td>
+                            </tr>
+                            <tr>
+                                <td><code>press_mouse(btn)</code></td>
+                                <td><code>press_mouse(1)</code></td>
+                                <td>Holds mouse button.</td>
+                            </tr>
+                            <tr>
+                                <td><code>release_mouse(btn)</code></td>
+                                <td><code>release_mouse(1)</code></td>
+                                <td>Releases mouse button.</td>
+                            </tr>
+                            <tr>
+                                <td><code>random(min, max)</code></td>
+                                <td><code>random(1, 10)</code></td>
+                                <td>Returns a random number.</td>
+                            </tr>
+                            <tr>
+                                <td><code>log(...args)</code></td>
+                                <td><code>log("Debug")</code></td>
+                                <td>Logs messages to the console.</td>
+                            </tr>
+                            <tr>
+                                <td><code>timestamp()</code></td>
+                                <td><code>timestamp()</code></td>
+                                <td>Returns current timestamp.</td>
+                            </tr>
+                            <tr>
+                                <td><code>isRunning()</code></td>
+                                <td><code>while(isRunning())</code></td>
+                                <td>Checks if execution is still active.</td>
+                            </tr>
+                            <tr>
+                                <td><code>sleep(ms)</code></td>
+                                <td><code>await sleep(100)</code></td>
+                                <td>Async sleep helper (JS only).</td>
+                            </tr>
+                            <tr>
+                                <td><code>repeat(count, fn)</code></td>
+                                <td><code>repeat(3, i =&gt; {...})</code></td>
+                                <td><b>Converter only.</b> Repeats commands during DuckyScript generation.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>JS Interpreter - Utilities </h3>
+                <div class="container">
+                    <h4>Windows / Evasion (Payloads.windows.evasion...)</h4>
+                    <table>
                         <tr>
-                            <th>Example</th>
-                            <th>Explanation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>WINDOWS
-                                <br> r
-                            </td>
-                            <td>Type the Windows key and then the r key</td>
-                        </tr>
-                        <tr>
-                            <td>WINDOWS r</td>
-                            <td>Press the Windows key and the r key simultaneously</td>
-                        </tr>
-                        <tr>
-                            <td>STRING WINDOWS r</td>
-                            <td>Write WINDOWS r</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Functions</h3>
-                <table id="ducky-functions-table">
-                    <thead>
-                        <tr>
-                            <th>Command</th>
-                            <th>Example</th>
+                            <th>Function</th>
+                            <th>Arguments</th>
                             <th>Description</th>
                         </tr>
-                    </thead>
-                    <tbody>
                         <tr>
-                            <td><code>REM</code></td>
-                            <td><code>REM Hello World!</code></td>
-                            <td>Comment</td>
+                            <td><code>etwBypass()</code></td>
+                            <td>None</td>
+                            <td>Disables PowerShell ETW logging in memory.</td>
                         </tr>
                         <tr>
-                            <td><code>DEFAULTDELAY</code> or <code>DEFAULT_DELAY</code></td>
-                            <td><code>DEFAULTDELAY 200</code></td>
-                            <td>Time in ms between every command</td>
+                            <td><code>disableScriptBlockLogging()</code></td>
+                            <td>None</td>
+                            <td>Disables PowerShell Script Block Logging via policy manipulation.</td>
                         </tr>
                         <tr>
-                            <td><code>DELAY</code></td>
-                            <td><code>DELAY 1000</code></td>
-                            <td>Delay in ms</td>
+                            <td><code>clearPSHistory()</code></td>
+                            <td>None</td>
+                            <td>Clears PowerShell command history artifacts.</td>
                         </tr>
                         <tr>
-                            <td><code>STRING</code></td>
-                            <td><code>STRING Hello World!</code></td>
-                            <td>Types the following string</td>
+                            <td><code>disableDefenderAdvanced()</code></td>
+                            <td>None</td>
+                            <td>Disables multiple Windows Defender protection layers.</td>
                         </tr>
                         <tr>
-                            <td><code>REPEAT</code> or <code>REPLAY</code></td>
-                            <td><code>REPEAT 3</code></td>
-                            <td>Repeats the last command n times</td>
+                            <td><code>disableTamperProtection()</code></td>
+                            <td>None</td>
+                            <td>Disables Windows Defender Tamper Protection via registry.</td>
                         </tr>
                         <tr>
-                            <td><code>LOCALE</code></td>
-                            <td><code>LOCALE DE</code></td>
-                            <td>Sets the keyboard layout. Available: <code>DE</code>, <code>GB</code>, <code>US</code>, <code>ES</code>, <code>FR</code>, <code>DK</code>, <code>RU</code>, <code>BE</code>, <code>PT</code>, <code>IT</code>, <code>SK</code>, <code>CZ</code>, <code>SI</code>, <code>BG</code>, <code>CA-FR</code>, <code>CH-DE</code>, <code>CH-FR</code>, <code>HU</code>
-                            </td>
+                            <td><code>processHollowing(target_process)</code></td>
+                            <td><code>target_process</code>: Process name</td>
+                            <td>Injects a PE into a legitimate process using reflective loading.</td>
                         </tr>
                         <tr>
-                            <td><code>KEYCODE</code></td>
-                            <td><code>KEYCODE 0x02 0x04</code></td>
-                            <td>Types a specific key code (modifier, key1[, ..., key6]) in decimal or hexadecimal</td>
+                            <td><code>reflectiveDLL(dll_url)</code></td>
+                            <td><code>dll_url</code>: URL</td>
+                            <td>Loads a DLL reflectively into memory.</td>
                         </tr>
                         <tr>
-                            <td><code>LED</code></td>
-                            <td><code>LED 40 20 10</code></td>
-                            <td>Changes the color of the LED in decimal RGB values (0-255)</td>
+                            <td><code>ppidSpoof(parent_process, command)</code></td>
+                            <td>Parent process, command</td>
+                            <td>Launches a process spoofing the parent PID.</td>
                         </tr>
-                    </tbody>
-                </table>
+                        <tr>
+                            <td><code>disableFirewall()</code></td>
+                            <td>None</td>
+                            <td>Disables Windows Firewall across all profiles.</td>
+                        </tr>
+                        <tr>
+                            <td><code>disableUAC()</code></td>
+                            <td>None</td>
+                            <td>Disables User Account Control.</td>
+                        </tr>
+                        <tr>
+                            <td><code>clearEventLogs()</code></td>
+                            <td>None</td>
+                            <td>Clears Windows Event Logs.</td>
+                        </tr>
+                        <tr>
+                            <td><code>excludePath(path)</code></td>
+                            <td><code>path</code>: Filesystem path</td>
+                            <td>Adds an exclusion path to Windows Defender.</td>
+                        </tr>
+                    </table>
+                    <h4>Windows / Privilege Escalation (Payloads.windows.privesc...)</h4>
+                    <table>
+                        <tr>
+                            <th>Function</th>
+                            <th>Arguments</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>fodhelperBypass(command)</code></td>
+                            <td>Command</td>
+                            <td>Abuses fodhelper auto-elevation mechanism.</td>
+                        </tr>
+                        <tr>
+                            <td><code>eventvwrBypass(command)</code></td>
+                            <td>Command</td>
+                            <td>Uses Event Viewer registry hijacking for elevation.</td>
+                        </tr>
+                        <tr>
+                            <td><code>computerDefaultsBypass(command)</code></td>
+                            <td>Command</td>
+                            <td>Abuses ComputerDefaults auto-elevation.</td>
+                        </tr>
+                        <tr>
+                            <td><code>tokenImpersonation()</code></td>
+                            <td>None</td>
+                            <td>Attempts SYSTEM token impersonation.</td>
+                        </tr>
+                        <tr>
+                            <td><code>alwaysInstallElevated(msi_path)</code></td>
+                            <td>MSI path</td>
+                            <td>Abuses AlwaysInstallElevated policy.</td>
+                        </tr>
+                        <tr>
+                            <td><code>dllHijackScan()</code></td>
+                            <td>None</td>
+                            <td>Scans processes for potential DLL hijacking vectors.</td>
+                        </tr>
+                    </table>
+
+                    <h4>Windows / Exfiltration (Payloads.windows.exfiltration...)</h4>
+                    <table>
+                        <tr>
+                            <th>Function</th>
+                            <th>Arguments</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>dnsExfil(file_path, domain)</code></td>
+                            <td>File path, domain</td>
+                            <td>Encodes file data into DNS queries.</td>
+                        </tr>
+                        <tr>
+                            <td><code>icmpExfil(target_ip, file_path)</code></td>
+                            <td>IP, file path</td>
+                            <td>Exfiltrates data via ICMP packets.</td>
+                        </tr>
+                        <tr>
+                            <td><code>httpExfilFile(url, file_path, field_name)</code></td>
+                            <td>URL, file, field</td>
+                            <td>Uploads file via HTTP multipart request.</td>
+                        </tr>
+                        <tr>
+                            <td><code>httpExfilBase64(url, file_path)</code></td>
+                            <td>URL, file</td>
+                            <td>Uploads Base64-encoded file via JSON.</td>
+                        </tr>
+                        <tr>
+                            <td><code>emailExfil(smtp, from, to, subject, file_path, body)</code></td>
+                            <td>Mail parameters</td>
+                            <td>Sends file as email attachment.</td>
+                        </tr>
+                        <tr>
+                            <td><code>ftpExfil(server, user, pass, file_path, remote_path)</code></td>
+                            <td>FTP credentials</td>
+                            <td>Uploads file via FTP.</td>
+                        </tr>
+                        <tr>
+                            <td><code>ftpExfilPassive(server, user, pass, file_path, remote_filename)</code></td>
+                            <td>FTP credentials</td>
+                            <td>Uploads file using passive FTP mode.</td>
+                        </tr>
+                        <tr>
+                            <td><code>webdavExfil(url, user, pass, file_path)</code></td>
+                            <td>WebDAV credentials</td>
+                            <td>Uploads file via WebDAV.</td>
+                        </tr>
+                        <tr>
+                            <td><code>transfershExfil(file_path, max_downloads)</code></td>
+                            <td>File, download limit</td>
+                            <td>Uploads file to temporary hosting service.</td>
+                        </tr>
+                        <tr>
+                            <td><code>fileioExfil(file_path)</code></td>
+                            <td>File path</td>
+                            <td>Uploads file to file-sharing service.</td>
+                        </tr>
+                    </table>
+
+                    <h4>Windows / Reverse Shells (Payloads.windows.reverseShells...)</h4>
+                    <table>
+                        <tr>
+                            <th>Function</th>
+                            <th>Arguments</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>powershell(ip, port)</code></td>
+                            <td>IP, port</td>
+                            <td>Creates a PowerShell TCP reverse shell.</td>
+                        </tr>
+                        <tr>
+                            <td><code>python(ip, port)</code></td>
+                            <td>IP, port</td>
+                            <td>Creates a Python-based reverse shell.</td>
+                        </tr>
+                        <tr>
+                            <td><code>bash(ip, port)</code></td>
+                            <td>IP, port</td>
+                            <td>Creates a Bash TCP reverse shell.</td>
+                        </tr>
+                        <tr>
+                            <td><code>netcat(ip, port)</code></td>
+                            <td>IP, port</td>
+                            <td>Uses Netcat for shell redirection.</td>
+                        </tr>
+                        <tr>
+                            <td><code>perl(ip, port)</code></td>
+                            <td>IP, port</td>
+                            <td>Creates a Perl reverse shell.</td>
+                        </tr>
+                    </table>
+
+                    <h4>Generic Payload Helpers (Payloads.window...)</h4>
+                    <table>
+                        <tr>
+                            <th>Function</th>
+                            <th>Arguments</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>powershell(cmd)</code></td>
+                            <td>Command</td>
+                            <td>Encodes and executes PowerShell command in Base64.</td>
+                        </tr>
+                        <tr>
+                            <td><code>downloadExec(url, filename)</code></td>
+                            <td>URL, filename</td>
+                            <td>Downloads and executes a file.</td>
+                        </tr>
+                    </table>
+
+                    <!-- ================= Strings ================= -->
+                    <h4>Strings (Strings...)</h4>
+                    <table>
+                        <tr>
+                            <th>Function</th>
+                            <th>Arguments</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>rot13(str)</code></td>
+                            <td>String</td>
+                            <td>Applies ROT13 substitution cipher.</td>
+                        </tr>
+                        <tr>
+                            <td><code>hexEncode(str)</code></td>
+                            <td>String</td>
+                            <td>Encodes string into hexadecimal.</td>
+                        </tr>
+                        <tr>
+                            <td><code>hexDecode(hex)</code></td>
+                            <td>Hex string</td>
+                            <td>Decodes hexadecimal string.</td>
+                        </tr>
+                        <tr>
+                            <td><code>reverseString(str)</code></td>
+                            <td>String</td>
+                            <td>Reverses character order.</td>
+                        </tr>
+                        <tr>
+                            <td><code>caesarCipher(str, shift)</code></td>
+                            <td>String, shift</td>
+                            <td>Applies Caesar cipher.</td>
+                        </tr>
+                        <tr>
+                            <td><code>urlEncode(str)</code></td>
+                            <td>String</td>
+                            <td>URL-encodes a string.</td>
+                        </tr>
+                        <tr>
+                            <td><code>obfuscate(str, key)</code></td>
+                            <td>String, XOR key</td>
+                            <td>Applies XOR obfuscation.</td>
+                        </tr>
+                        <tr>
+                            <td><code>deobfuscate(str, key)</code></td>
+                            <td>String, XOR key</td>
+                            <td>Reverses XOR obfuscation.</td>
+                        </tr>
+                        <tr>
+                            <td><code>random(length)</code></td>
+                            <td>Length</td>
+                            <td>Generates random alphanumeric string.</td>
+                        </tr>
+                    </table>
+                    <h4>Base64 (Base64...)</h4>
+                    <table>
+                        <tr>
+                            <th>Function</th>
+                            <th>Arguments</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>encode(str)</code></td>
+                            <td><code>str</code>: String</td>
+                            <td>Encodes a UTF-8 string into Base64 format with Unicode safety handling.</td>
+                        </tr>
+                        <tr>
+                            <td><code>decode(str)</code></td>
+                            <td><code>str</code>: Base64 String</td>
+                            <td>Decodes a Base64-encoded string back into UTF-8.</td>
+                        </tr>
+                    </table>
+                </div>
+                <h3>Functions</h3>
+                <div class="container">
+                    <table id="ducky-functions-table">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Example</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code class="clickable">REM</code></td>
+                                <td><code class="clickable">REM Hello World!</code></td>
+                                <td>Comment</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">DEFAULT_DELAY</code></td>
+                                <td><code class="clickable">DEFAULT_DELAY 200</code></td>
+                                <td>Time in ms between every command</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">DELAY</code></td>
+                                <td><code class="clickable">DELAY 1000</code></td>
+                                <td>Delay in ms</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">STRING</code></td>
+                                <td><code class="clickable">STRING Hello World!</code></td>
+                                <td>Types the following string</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">STRINGLN</code></td>
+                                <td><code class="clickable">STRINGLN Hello World!</code></td>
+                                <td>Types the following string and gives a line break (ENTER)</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">LSTRING_BEGIN</code>...<code class="clickable">LSTRING_END</code></td>
+                                <td>
+                                <code class="clickable">
+                                    LSTRING_BEGIN
+                                    Hello World! 1
+                                    Hello World! 2
+                                    Hello World! 3
+                                    LSTRING_END
+                                </code></td>
+                                <td>For longer texts, use LSTRING_BEGIN and LSTRING_END. Everything between these two commands is written.</td>
+                            </tr>
+                             <tr>
+                                <td><code class="clickable">LOOP_BEGIN</code>...<code class="clickable">LOOP_END</code></td>
+                                <td>
+                                <code class="clickable">
+                                    LOOP_BEGIN 2
+                                    STRINGLN Hello World! 1
+                                    DELAY 500
+                                    STRINGLN Hello World! 2
+                                    LOOP_END
+                                </code></td>
+                                <td>To repeat one or more lines, you can use LOOP_BEGIN and LOOP_END and declare a number of iterations (like a for loop). It also supports infinite loops by setting the number to 0 or negative value -1. For example, <code class="clickable">LOOP_BEGIN 0</code> or <code class="clickable">LOOP_BEGIN -1</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">REPEAT</code></td>
+                                <td><code class="clickable">REPEAT 3</code></td>
+                                <td>Repeats the last command n times</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">LOCALE</code></td>
+                                <td><code class="clickable">LOCALE DE</code></td>
+                                <td>Sets the keyboard layout. Available in: <code class="clickable">DE</code>, <code class="clickable">GB</code>, <code class="clickable">US</code>, <code class="clickable">ES</code>, <code class="clickable">FR</code>, <code class="clickable">DK</code>, <code class="clickable">RU</code>, <code class="clickable">BE</code>, <code class="clickable">PT</code>. More are available, including for Mac, but they are not enabled due to microcontroller space limitations.
+                                To enable disabled keyboards, uncomment the line in locale/locale.cpp where they appear. Be mindful of space limitations; ideally, only comment out keyboards you don't use frequently. You can set approximately 3 or 4 keyboards.</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">KEYCODE</code></td>
+                                <td><code class="clickable">KEYCODE 0x02 0x04</code></td>
+                                <td>Types a specific key code (modifier, key1[, ..., key6]) in decimal or hexadecimal</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">LED</code></td>
+                                <td><code class="clickable">LED RIGHT 1</code></td>
+                                <td>Turn on the right LED. The CJMCU-3212 has two LEDs, RIGHT and LEFT. To turn them on, press 1, and to turn them off, press 0. <code class="clickable">LED RIGHT 0</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Mouse Controls</h3>
+                <div class="container">
+                    <p><strong>Buttons:</strong> <span class="warn"> Left (1), Right (2), Middle (4), Back (8), Forward (16).</span></p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Example</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code class="clickable">M_MOVE</code></td>
+                                <td><code class="clickable">M_MOVE 100 -50</code></td>
+                                <td>Moves cursor (X Y). Supports negative values.</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">M_CLICK</code></td>
+                                <td><code class="clickable">M_CLICK 1</code></td>
+                                <td>Quick click of the specified button.</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">M_PRESS</code></td>
+                                <td><code class="clickable">M_PRESS 1</code></td>
+                                <td>Holds a mouse button down.</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">M_RELEASE</code></td>
+                                <td><code class="clickable">M_RELEASE 1</code></td>
+                                <td>Releases a held mouse button.</td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">M_SCROLL</code></td>
+                                <td><code class="clickable">M_SCROLL 5</code></td>
+                                <td>Vertical scroll (Positive: Up, Negative: Down).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
                 <h3>Standard Keys</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Key</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>a</code> - <code>z</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>A</code> - <code>Z</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>0</code> - <code>9</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>F1</code> - <code>F12</code></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code class="clickable">a</code> - <code class="clickable">z</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">A</code> - <code class="clickable">Z</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">0</code> - <code class="clickable">9</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">F1</code> - <code class="clickable">F12</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 <h3>Modifier Keys</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Key</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>CTRL</code> or <code>CONTROL</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>SHIFT</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>ALT</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>WINDOWS</code> or <code>GUI</code></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code class="clickable">CTRL</code> or <code class="clickable">CONTROL</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">SHIFT</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">ALT</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">WINDOWS</code> or <code class="clickable">GUI</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 <h3>Other Keys</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Key</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>ENTER</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>MENU</code> or <code>APP</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>DELETE</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>HOME</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>INSERT</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>PAGEUP</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>PAGEDOWN</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>UP</code> or <code>UPARROW</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>DOWN</code> or <code>DOWNARROW</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>LEFT</code> or <code>LEFTARROW</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>RIGHT</code> or <code>RIGHTARROW</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>TAB</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>END</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>ESC</code> or <code>ESCAPE</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>SPACE</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>PAUSE or BREAK</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>CAPSLOCK</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>NUMLOCK</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>PRINTSCREEN</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>SCROLLLOCK</code></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code class="clickable">ENTER</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">MENU</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">DELETE</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">HOME</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">INSERT</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">PAGEUP</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">PAGEDOWN</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">UP</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">DOWN</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">LEFT</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">RIGHT</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">TAB</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">END</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">ESC</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">SPACE</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">PAUSE or BREAK</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">CAPSLOCK</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">NUMLOCK</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">PRINTSCREEN</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">SCROLLLOCK</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 <h3>Numpad Keys</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Key</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>NUM_0</code> - <code>NUM_9</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>NUM_ASTERIX</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>NUM_ENTER</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>NUM_MINUS</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>NUM_DOT</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>NUM_PLUS</code></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code class="clickable">NUM_0</code> - <code class="clickable">NUM_9</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">NUM_ASTERIX</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">NUM_ENTER</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">NUM_MINUS</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">NUM_DOT</code></td>
+                            </tr>
+                            <tr>
+                                <td><code class="clickable">NUM_PLUS</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </section>
         </main>
         <footer>
-            <a href="https://github.com/spacehuhntech/WiFiDuck" target="_blank">Source</a>
+            <a href="https://github.com/spacehuhntech/WiFiDuck" target="_blank">Original source</a>
+            </br></br>
+            <a href="https://github.com/Dereck81/CJMCU-3212-WiFiDuck" target="_blank">Code adapted for the CJMCU-3212</a>
             <br><br>
             <span id="version"></span><br>
             Copyright (c) 2021 Spacehuhn Technologies<br>

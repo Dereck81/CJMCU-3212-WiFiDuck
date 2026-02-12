@@ -1,4 +1,4 @@
-D@/*
+/*
    This software is licensed under the MIT License. See the license file for details.
    Source: https://github.com/spacehuhntech/WiFiDuck
  */
@@ -31,6 +31,13 @@ D@/*
 
 /*! ===== SDCARD Settings ===== */
 #define USE_SD_CARD
+
+#define CLI_BUFFER (BUFFER_SIZE + 25)
+#define MAX_NAME 32
+
+// Command to reset values ​​from previous executions. 
+// It must be the same as the one the receiver (ATmega32u4) has.
+#define CMD_PARSER_RESET  "\x1B"
 
 /*! ======EEPROM Settings ===== */
 #define EEPROM_SIZE       4095

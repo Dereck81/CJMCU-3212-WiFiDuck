@@ -1,6 +1,9 @@
 /*
    This software is licensed under the MIT License. See the license file for details.
    Source: https://github.com/spacehuhntech/WiFiDuck
+
+   Modified and adapted by:
+    - Dereck81
  */
 
 #pragma once
@@ -15,6 +18,8 @@ namespace duckscript {
     void repeat();
     void stopAll();
     void stop(String fileName);
+
+    void check_loop_block();
 
     bool isRunning();
     String currentScript();

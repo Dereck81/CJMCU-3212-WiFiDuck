@@ -2,6 +2,7 @@
 *.d
 
 Config
+**/build/
 
 # Compiled Object files
 *.slo

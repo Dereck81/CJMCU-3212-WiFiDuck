@@ -1,6 +1,9 @@
 /*
    This software is licensed under the MIT License. See the license file for details.
    Source: https://github.com/spacehuhntech/WiFiDuck
+
+   Modified and adapted by:
+    - Dereck81
  */
 
 #include "webserver.h"
@@ -17,6 +20,7 @@
 #include "cli.h"
 #include "spiffs.h"
 #include "settings.h"
+#include "sdcard.h"
 
 #include "webfiles.h"
 
@@ -38,6 +42,8 @@ namespace webserver {
 
     DNSServer dnsServer;
 
+    char stop_cmd[8] = "sd_stop";
+
     bool reboot = false;
     IPAddress apIP(192, 168, 4, 1);
 
@@ -48,10 +54,18 @@ namespace webserver {
 
         else if (type == WS_EVT_DISCONNECT) {
             debugf("WS Client disconnected %u\n", client->id());
+
+            cli::parse(stop_cmd, [](const char* str) {
+                debugf("%s\n", str);
+            }, false);
         }
 
         else if (type == WS_EVT_ERROR) {
             debugf("WS Client %u error(%u): %s\n", client->id(), *((uint16_t*)arg), (char*)data);
+
+            cli::parse(stop_cmd, [](const char* str) {
+                debugf("%s\n", str);
+            }, false);
         }
 
         else if (type == WS_EVT_PONG) {
@@ -89,6 +103,8 @@ namespace webserver {
         */
         WiFi.softAP(settings::getSSID(), settings::getPassword(), settings::getChannelNum(), 0, 1);
         WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+        //WiFi.setOutputPower(10.0); // dBm - It can be adjusted to the power you want.
+
         debugf("Started Access Point \"%s\":\"%s\"\n", settings::getSSID(), settings::getPassword());
 
         // Webserver
@@ -197,5 +213,11 @@ namespace webserver {
 
     void send(const char* str) {
         if (currentClient) currentClient->text(str);
+    }
+
+    void sendAll(const char* str) {
+        if (str && ws.count() > 0) {
+            ws.textAll(str); 
+        }
     }
 }
